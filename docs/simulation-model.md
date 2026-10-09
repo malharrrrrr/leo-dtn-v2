@@ -34,6 +34,8 @@ At most one bundle serializes on a given directed contact at a time. Queued bund
 
 Initial policy: **restart from the beginning** after interruption. If a contact ends before serialization completion, the active attempt is interrupted, partial bits are discarded, and reserved resource is released. The sender retains the complete bundle and queues/retries it on a later feasible contact. The stale completion event is invalidated by an attempt token and has no effect. Already serialized data is not counted as delivered payload. No partial-fragment forwarding/resumption is modeled.
 
+For deterministic failure tests, a scenario may include an exogenous contact interruption at an integer simulation timestamp strictly inside a scheduled contact window. This closes that contact at the interruption time, records and discards the partial transmitted bits, invalidates the pending completion, releases the contact resource, and leaves the complete bundle at the sender for a later contact. The failure is part of the normalized scenario input; it is not wall-clock or random behavior.
+
 ## Bundle lifecycle and finite storage
 
 A bundle has unique ID, source, destination, positive payload bytes, creation tick, absolute expiry tick (`creation + TTL`), current holder while stored, status, ordered forwarding history, and visited-node set (or equivalent). Require source/destination to exist and TTL positive. Record every generation attempt; if source buffer cannot admit the bundle, mark it `rejected_at_source` without placing it in a buffer. Statuses distinguish `queued`, `transmitting`, `in_transit` (serialized, propagating), `delivered`, `expired`, and `rejected_at_source`; a failed/blocked attempt remains queued. Delivery, expiry, and source rejection are terminal.

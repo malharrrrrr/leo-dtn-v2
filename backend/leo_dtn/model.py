@@ -40,6 +40,12 @@ class Contact:
 
 
 @dataclass(frozen=True, slots=True)
+class ContactInterruption:
+    contact_id: str
+    time_us: int
+
+
+@dataclass(frozen=True, slots=True)
 class BundleRequest:
     bundle_id: str
     source: str
@@ -100,10 +106,19 @@ class ActiveTransmissionSnapshot:
 
 
 @dataclass(frozen=True, slots=True)
+class BufferSample:
+    time_us: int
+    node_id: str
+    occupancy_bytes: int
+
+
+@dataclass(frozen=True, slots=True)
 class SimulationSnapshot:
     time_us: int
+    routing_policy: str
     nodes: tuple[NodeSnapshot, ...]
     contacts: tuple[Contact, ...]
     bundles: tuple[BundleSnapshot, ...]
     active_transmissions: tuple[ActiveTransmissionSnapshot, ...]
+    buffer_samples: tuple[BufferSample, ...]
     events: tuple[EventRecord, ...]

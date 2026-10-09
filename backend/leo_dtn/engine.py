@@ -5,21 +5,24 @@ from __future__ import annotations
 import heapq
 import math
 from dataclasses import dataclass, field
+from dataclasses import replace
 from enum import IntEnum
 
 from .model import (
     ActiveTransmissionSnapshot,
+    BufferSample,
     BundleRequest,
     BundleSnapshot,
     BundleStatus,
     Contact,
+    ContactInterruption,
     EventRecord,
     ForwardingRecord,
     Node,
     NodeSnapshot,
     SimulationSnapshot,
 )
-from .routing import earliest_arrival_path, serialization_duration_us
+from .routing import ContactAwareEarliestArrival, RoutingPolicy, serialization_duration_us
 
 
 class EventPriority(IntEnum):
@@ -49,6 +52,7 @@ class _Bundle:
     expiry_time_us: int
     holder: str | None
     status: BundleStatus
+    queued_at_us: int | None = None
     history: list[ForwardingRecord] = field(default_factory=list)
     visited: set[str] = field(default_factory=set)
     attempt: int = 0
@@ -57,25 +61,68 @@ class _Bundle:
 class SimulationEngine:
     """Owns all mutable state for one deterministic simulation run."""
 
-    def __init__(self, *, nodes: tuple[Node, ...], contacts: tuple[Contact, ...]) -> None:
+    def __init__(
+        self,
+        *,
+        nodes: tuple[Node, ...],
+        contacts: tuple[Contact, ...],
+        interruptions: tuple[ContactInterruption, ...] = (),
+        routing_policy: RoutingPolicy | None = None,
+    ) -> None:
         self._nodes = self._validate_nodes(nodes)
         self._contacts = self._validate_contacts(contacts, self._nodes)
         self._contacts_by_id = {contact.contact_id: contact for contact in self._contacts}
+        self._routing_policy = (
+            routing_policy if routing_policy is not None else ContactAwareEarliestArrival()
+        )
+        if not isinstance(getattr(self._routing_policy, "name", None), str) or not self._routing_policy.name:
+            raise ValueError("routing policy must have a non-empty name")
         self._occupancy = {node_id: 0 for node_id in self._nodes}
         self._bundles: dict[str, _Bundle] = {}
         self._requests: dict[str, BundleRequest] = {}
         self._active_by_contact: dict[str, str] = {}
         self._active_transmissions: dict[str, ActiveTransmissionSnapshot] = {}
+        self._contact_cutoffs: dict[str, int] = {}
         self._queue: list[_ScheduledEvent] = []
         self._queue_sequence = 0
         self._record_sequence = 0
         self._time_us = 0
         self._records: list[EventRecord] = []
-        self._route_scheduled: set[tuple[str, int]] = set()
+        self._dispatch_scheduled: set[int] = set()
+        self._buffer_samples = [
+            BufferSample(time_us=0, node_id=node_id, occupancy_bytes=0)
+            for node_id in sorted(self._nodes)
+        ]
 
         for contact in self._contacts:
             self._schedule(contact.start_us, EventPriority.CONTACT_START, "contact_start", contact_id=contact.contact_id)
             self._schedule(contact.end_us, EventPriority.CONTACT_END, "contact_end", contact_id=contact.contact_id)
+
+        if any(
+            not isinstance(item.time_us, int) or isinstance(item.time_us, bool)
+            for item in interruptions
+        ):
+            raise ValueError("contact interruption time must be integer microseconds")
+        seen_interruptions: set[str] = set()
+        for interruption in sorted(interruptions, key=lambda item: (item.time_us, item.contact_id)):
+            contact = self._contacts_by_id.get(interruption.contact_id)
+            if contact is None:
+                raise ValueError(f"interruption references unknown contact {interruption.contact_id}")
+            if (
+                not isinstance(interruption.time_us, int)
+                or isinstance(interruption.time_us, bool)
+                or not contact.start_us < interruption.time_us < contact.end_us
+            ):
+                raise ValueError("contact interruption must occur strictly inside its contact window")
+            if interruption.contact_id in seen_interruptions:
+                raise ValueError("only one interruption per contact is supported")
+            seen_interruptions.add(interruption.contact_id)
+            self._schedule(
+                interruption.time_us,
+                EventPriority.CONTACT_END,
+                "contact_interruption",
+                contact_id=interruption.contact_id,
+            )
 
     @staticmethod
     def _validate_nodes(nodes: tuple[Node, ...]) -> dict[str, Node]:
@@ -92,7 +139,9 @@ class SimulationEngine:
             if node.position_km is not None and (
                 len(node.position_km) != 3
                 or any(
-                    not isinstance(value, (int, float)) or not math.isfinite(value)
+                    not isinstance(value, (int, float))
+                    or isinstance(value, bool)
+                    or not math.isfinite(value)
                     for value in node.position_km
                 )
             ):
@@ -106,6 +155,15 @@ class SimulationEngine:
     def _validate_contacts(
         contacts: tuple[Contact, ...], nodes: dict[str, Node]
     ) -> tuple[Contact, ...]:
+        for contact in contacts:
+            timestamps = (contact.start_us, contact.end_us, contact.propagation_delay_us)
+            if any(not isinstance(value, int) or isinstance(value, bool) for value in timestamps):
+                raise ValueError(f"contact {contact.contact_id} timestamps must be integer microseconds")
+            if (
+                not isinstance(contact.rate_bits_per_second, int)
+                or isinstance(contact.rate_bits_per_second, bool)
+            ):
+                raise ValueError(f"contact {contact.contact_id} data rate must be an integer")
         ids: set[str] = set()
         ordered = tuple(sorted(contacts, key=lambda item: (item.from_node, item.to_node, item.start_us, item.contact_id)))
         previous_by_pair: dict[tuple[str, str], Contact] = {}
@@ -117,9 +175,6 @@ class SimulationEngine:
                 raise ValueError(f"contact {contact.contact_id} references an unknown node")
             if contact.from_node == contact.to_node:
                 raise ValueError(f"contact {contact.contact_id} cannot connect a node to itself")
-            timestamps = (contact.start_us, contact.end_us, contact.propagation_delay_us)
-            if any(not isinstance(value, int) or isinstance(value, bool) for value in timestamps):
-                raise ValueError(f"contact {contact.contact_id} timestamps must be integer microseconds")
             if contact.start_us < 0 or contact.start_us >= contact.end_us:
                 raise ValueError(f"contact {contact.contact_id} must have start < end and nonnegative times")
             if (
@@ -142,6 +197,8 @@ class SimulationEngine:
 
     def add_bundle(self, request: BundleRequest) -> None:
         """Schedule one bundle generation attempt without mutating state immediately."""
+        if not request.bundle_id:
+            raise ValueError("bundle ID must be non-empty")
         if request.bundle_id in self._bundles or any(
             event.bundle_id == request.bundle_id for event in self._queue
         ):
@@ -192,11 +249,13 @@ class SimulationEngine:
         self._time_us = event.time_us
         previous_record_count = len(self._records)
         self._process(event)
-        if event.kind == "route" and event.bundle_id is not None:
-            self._route_scheduled.discard((event.bundle_id, event.time_us))
+        if event.kind == "dispatch":
+            self._dispatch_scheduled.discard(event.time_us)
         return self._records[-1] if len(self._records) > previous_record_count else None
 
     def run_until(self, horizon_us: int) -> SimulationSnapshot:
+        if not isinstance(horizon_us, int) or isinstance(horizon_us, bool):
+            raise ValueError("simulation horizon must be integer microseconds")
         if horizon_us < self._time_us:
             raise ValueError("simulation horizon cannot be in the past")
         while self._queue and self._queue[0].time_us <= horizon_us:
@@ -236,12 +295,14 @@ class SimulationEngine:
             self._record("contact_started", contact_id=event.contact_id)
         elif event.kind == "contact_end":
             self._handle_contact_end(event.contact_id)
+        elif event.kind == "contact_interruption":
+            self._handle_contact_interruption(event.contact_id)
         elif event.kind == "bundle_generation":
             self._handle_generation(event.bundle_id)
         elif event.kind == "bundle_expiration":
             self._handle_expiration(event.bundle_id)
-        elif event.kind == "route":
-            self._handle_route(event.bundle_id)
+        elif event.kind == "dispatch":
+            self._handle_dispatch()
         elif event.kind == "transmission_complete":
             self._handle_transmission_complete(event)
         elif event.kind == "receiver_arrival":
@@ -268,8 +329,9 @@ class SimulationEngine:
         bundle = self._bundles[bundle_id]
         bundle.status = BundleStatus.QUEUED
         bundle.holder = request.source
+        bundle.queued_at_us = self._time_us
         bundle.visited.add(request.source)
-        self._occupancy[request.source] += request.payload_bytes
+        self._change_occupancy(request.source, request.payload_bytes)
         self._record("bundle_queued", bundle_id=bundle_id, node_id=request.source)
         self._schedule_route(bundle_id, self._time_us)
 
@@ -284,7 +346,7 @@ class SimulationEngine:
         ):
             return
         if bundle.holder is not None:
-            self._occupancy[bundle.holder] -= bundle.request.payload_bytes
+            self._change_occupancy(bundle.holder, -bundle.request.payload_bytes)
         active_contact = next(
             (cid for cid, bid in self._active_by_contact.items() if bid == bundle_id), None
         )
@@ -295,25 +357,35 @@ class SimulationEngine:
         bundle.status = BundleStatus.EXPIRED
         bundle.attempt += 1
         self._record("bundle_expired", bundle_id=bundle_id)
+        self._wake_queued_bundles(except_bundle=bundle_id)
 
     def _schedule_route(self, bundle_id: str, at_us: int) -> None:
-        key = (bundle_id, at_us)
-        if key not in self._route_scheduled:
-            self._route_scheduled.add(key)
-            self._schedule(at_us, EventPriority.ROUTE, "route", bundle_id=bundle_id)
+        if at_us not in self._dispatch_scheduled:
+            self._dispatch_scheduled.add(at_us)
+            self._schedule(at_us, EventPriority.ROUTE, "dispatch")
 
-    def _handle_route(self, bundle_id: str | None) -> None:
-        if bundle_id is None:
-            return
+    def _handle_dispatch(self) -> None:
+        queued = sorted(
+            (
+                (bundle.queued_at_us if bundle.queued_at_us is not None else self._time_us, bundle_id)
+                for bundle_id, bundle in self._bundles.items()
+                if bundle.status == BundleStatus.QUEUED and bundle.holder is not None
+            ),
+            key=lambda item: (item[0], item[1]),
+        )
+        for _, bundle_id in queued:
+            self._route_bundle(bundle_id)
+
+    def _route_bundle(self, bundle_id: str) -> None:
         bundle = self._bundles.get(bundle_id)
         if bundle is None or bundle.status != BundleStatus.QUEUED or bundle.holder is None:
             return
-        path = earliest_arrival_path(
+        path = self._routing_policy.find_path(
             source=bundle.holder,
             destination=bundle.request.destination,
             start_time_us=self._time_us,
             payload_bytes=bundle.request.payload_bytes,
-            contacts=self._contacts,
+            contacts=self._routing_contacts(),
             forbidden_nodes=bundle.visited - {bundle.holder},
         )
         if not path:
@@ -403,6 +475,46 @@ class SimulationEngine:
         )
         self._wake_queued_bundles(except_bundle=bundle.request.bundle_id)
 
+    def _routing_contacts(self) -> tuple[Contact, ...]:
+        result = []
+        for contact in self._contacts:
+            cutoff = self._contact_cutoffs.get(contact.contact_id)
+            if cutoff is None:
+                result.append(contact)
+            elif contact.start_us < cutoff:
+                result.append(replace(contact, end_us=cutoff))
+        return tuple(result)
+
+    def _handle_contact_interruption(self, contact_id: str | None) -> None:
+        if contact_id is None:
+            return
+        self._contact_cutoffs[contact_id] = self._time_us
+        transmission = self._active_transmissions.pop(contact_id, None)
+        bundle_id = self._active_by_contact.pop(contact_id, None)
+        self._record("contact_interrupted", contact_id=contact_id)
+        if bundle_id is None or transmission is None:
+            return
+        bundle = self._bundles[bundle_id]
+        if bundle.status != BundleStatus.TRANSMITTING:
+            return
+        contact = self._contacts_by_id[contact_id]
+        elapsed_us = max(0, self._time_us - transmission.start_time_us)
+        partial_bits = min(
+            bundle.request.payload_bytes * 8,
+            elapsed_us * contact.rate_bits_per_second // 1_000_000,
+        )
+        bundle.status = BundleStatus.QUEUED
+        bundle.attempt += 1
+        self._record(
+            "transmission_interrupted",
+            bundle_id=bundle_id,
+            node_id=bundle.holder,
+            contact_id=contact_id,
+            details=(("discarded_partial_bits", str(partial_bits)),),
+        )
+        self._schedule_route(bundle_id, self._time_us)
+        self._wake_queued_bundles(except_bundle=bundle_id)
+
     def _handle_receiver_arrival(self, event: _ScheduledEvent) -> None:
         bundle = self._bundles.get(event.bundle_id or "")
         contact = self._contacts_by_id.get(event.contact_id or "")
@@ -427,8 +539,8 @@ class SimulationEngine:
 
         sender = bundle.holder
         assert sender is not None
-        self._occupancy[sender] -= bundle.request.payload_bytes
-        self._occupancy[receiver] += bundle.request.payload_bytes
+        self._change_occupancy(sender, -bundle.request.payload_bytes)
+        self._change_occupancy(receiver, bundle.request.payload_bytes)
         bundle.holder = receiver
         bundle.visited.add(receiver)
         bundle.history.append(
@@ -449,11 +561,13 @@ class SimulationEngine:
             bundle.status = BundleStatus.DELIVERED
             self._record("bundle_delivered", bundle_id=bundle.request.bundle_id, node_id=receiver, contact_id=contact.contact_id)
             bundle.holder = None
-            self._occupancy[receiver] -= bundle.request.payload_bytes
+            self._change_occupancy(receiver, -bundle.request.payload_bytes)
         else:
             bundle.status = BundleStatus.QUEUED
+            bundle.queued_at_us = self._time_us
             self._record("bundle_queued", bundle_id=bundle.request.bundle_id, node_id=receiver, contact_id=contact.contact_id)
             self._schedule_route(bundle.request.bundle_id, self._time_us)
+        self._wake_queued_bundles(except_bundle=bundle.request.bundle_id)
 
     def _handle_contact_end(self, contact_id: str | None) -> None:
         if contact_id is None:
@@ -469,11 +583,25 @@ class SimulationEngine:
             bundle.attempt += 1
             self._record("transmission_interrupted", bundle_id=bundle_id, contact_id=contact_id)
             self._schedule_route(bundle_id, self._time_us)
+            self._wake_queued_bundles(except_bundle=bundle_id)
 
     def _wake_queued_bundles(self, *, except_bundle: str) -> None:
         for bundle_id, bundle in sorted(self._bundles.items()):
             if bundle_id != except_bundle and bundle.status == BundleStatus.QUEUED:
                 self._schedule_route(bundle_id, self._time_us)
+
+    def _change_occupancy(self, node_id: str, delta_bytes: int) -> None:
+        next_occupancy = self._occupancy[node_id] + delta_bytes
+        if next_occupancy < 0:
+            raise RuntimeError(f"buffer occupancy underflow for node {node_id}")
+        self._occupancy[node_id] = next_occupancy
+        self._buffer_samples.append(
+            BufferSample(
+                time_us=self._time_us,
+                node_id=node_id,
+                occupancy_bytes=next_occupancy,
+            )
+        )
 
     def snapshot(self) -> SimulationSnapshot:
         nodes = tuple(
@@ -496,6 +624,7 @@ class SimulationEngine:
         )
         return SimulationSnapshot(
             time_us=self._time_us,
+            routing_policy=self._routing_policy.name,
             nodes=nodes,
             contacts=self._contacts,
             bundles=bundles,
@@ -503,5 +632,6 @@ class SimulationEngine:
                 self._active_transmissions[contact_id]
                 for contact_id in sorted(self._active_transmissions)
             ),
+            buffer_samples=tuple(self._buffer_samples),
             events=tuple(self._records),
         )

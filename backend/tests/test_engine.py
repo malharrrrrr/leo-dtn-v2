@@ -1,5 +1,13 @@
 from leo_dtn.engine import SimulationEngine
-from leo_dtn.model import BundleRequest, BundleStatus, Contact, Node, NodeKind
+from leo_dtn.model import (
+    BundleRequest,
+    BundleStatus,
+    Contact,
+    ContactInterruption,
+    Node,
+    NodeKind,
+)
+from leo_dtn.routing import StaticMinimumHop
 from leo_dtn.scenarios import SECOND, relay_vertical_slice
 
 
@@ -99,6 +107,101 @@ def test_source_buffer_rejects_bundle_without_creating_a_holder():
     assert any(event.kind == "bundle_rejected_at_source" for event in snapshot.events)
 
 
+def test_contact_interruption_discards_partial_bits_and_restarts_later():
+    nodes = (
+        Node("A", NodeKind.GROUND_STATION, 2_000),
+        Node("B", NodeKind.GROUND_STATION, 2_000),
+    )
+    contacts = (
+        Contact("first", "A", "B", 0, 10 * SECOND, 8_000),
+        Contact("later", "A", "B", 20 * SECOND, 30 * SECOND, 8_000),
+    )
+    engine = SimulationEngine(
+        nodes=nodes,
+        contacts=contacts,
+        interruptions=(ContactInterruption("first", SECOND // 2),),
+    )
+    engine.add_bundle(BundleRequest("B1", "A", "B", 1_000, 0, 100 * SECOND))
+
+    snapshot = engine.run_until(22 * SECOND)
+
+    assert snapshot.bundles[0].status == BundleStatus.DELIVERED
+    assert [hop.transmission_start_us for hop in snapshot.bundles[0].forwarding_history] == [
+        20 * SECOND
+    ]
+    interrupted = next(event for event in snapshot.events if event.kind == "transmission_interrupted")
+    assert interrupted.time_us == SECOND // 2
+    assert dict(interrupted.details)["discarded_partial_bits"] == "4000"
+    assert next(node.buffer_occupancy_bytes for node in snapshot.nodes if node.node.node_id == "A") == 0
+
+
+def test_bundles_contend_serially_for_a_contact_in_deterministic_order():
+    nodes = (
+        Node("A", NodeKind.GROUND_STATION, 2_000),
+        Node("B", NodeKind.GROUND_STATION, 2_000),
+    )
+    contacts = (Contact("A-B", "A", "B", 0, 3 * SECOND, 8_000),)
+    engine = SimulationEngine(nodes=nodes, contacts=contacts)
+    engine.add_bundle(BundleRequest("second", "A", "B", 1_000, 0, 10 * SECOND))
+    engine.add_bundle(BundleRequest("first", "A", "B", 1_000, 0, 10 * SECOND))
+
+    snapshot = engine.run_until(3 * SECOND)
+
+    starts = [event for event in snapshot.events if event.kind == "transmission_started"]
+    assert [(event.bundle_id, event.time_us) for event in starts] == [
+        ("first", 0),
+        ("second", SECOND),
+    ]
+    assert all(bundle.status == BundleStatus.DELIVERED for bundle in snapshot.bundles)
+
+
+def test_receiver_buffer_overflow_keeps_bundle_at_sender():
+    nodes = (
+        Node("A", NodeKind.GROUND_STATION, 2_000),
+        Node("B", NodeKind.GROUND_STATION, 500),
+    )
+    contacts = (Contact("A-B", "A", "B", 0, 3 * SECOND, 8_000),)
+    engine = SimulationEngine(nodes=nodes, contacts=contacts)
+    engine.add_bundle(BundleRequest("B1", "A", "B", 1_000, 0, 10 * SECOND))
+
+    snapshot = engine.run_until(2 * SECOND)
+
+    assert snapshot.bundles[0].status == BundleStatus.QUEUED
+    assert snapshot.bundles[0].holder == "A"
+    assert next(node.buffer_occupancy_bytes for node in snapshot.nodes if node.node.node_id == "A") == 1_000
+    assert any(event.kind == "receiver_buffer_rejected" for event in snapshot.events)
+
+
+def test_expiration_while_queued_releases_buffer_capacity():
+    nodes = (
+        Node("A", NodeKind.GROUND_STATION, 2_000),
+        Node("B", NodeKind.GROUND_STATION, 2_000),
+    )
+    engine = SimulationEngine(nodes=nodes, contacts=())
+    engine.add_bundle(BundleRequest("B1", "A", "B", 1_000, 0, SECOND))
+
+    snapshot = engine.run_until(SECOND)
+
+    assert snapshot.bundles[0].status == BundleStatus.EXPIRED
+    assert next(node.buffer_occupancy_bytes for node in snapshot.nodes if node.node.node_id == "A") == 0
+
+
+def test_expiration_during_transmission_invalidates_completion_and_releases_contact():
+    nodes = (
+        Node("A", NodeKind.GROUND_STATION, 2_000),
+        Node("B", NodeKind.GROUND_STATION, 2_000),
+    )
+    contacts = (Contact("A-B", "A", "B", 0, 3 * SECOND, 8_000),)
+    engine = SimulationEngine(nodes=nodes, contacts=contacts)
+    engine.add_bundle(BundleRequest("B1", "A", "B", 1_000, 0, SECOND // 2))
+
+    snapshot = engine.run_until(2 * SECOND)
+
+    assert snapshot.bundles[0].status == BundleStatus.EXPIRED
+    assert snapshot.active_transmissions == ()
+    assert not any(event.kind == "bundle_delivered" for event in snapshot.events)
+
+
 def test_propagation_delay_is_separate_from_serialization():
     nodes = (
         Node("A", NodeKind.GROUND_STATION, 2_000),
@@ -168,3 +271,36 @@ def test_identical_scenarios_replay_identically():
     second = relay_vertical_slice().run_until(22 * SECOND)
 
     assert first == second
+
+
+def test_routing_policy_is_replaceable_without_changing_event_execution():
+    nodes = (
+        Node("S", NodeKind.GROUND_STATION, 2_000),
+        Node("B", NodeKind.SATELLITE, 2_000),
+        Node("D", NodeKind.GROUND_STATION, 2_000),
+    )
+    contacts = (
+        Contact("direct-late", "S", "D", 100 * SECOND, 102 * SECOND, 8_000),
+        Contact("first-hop", "S", "B", 0, 2 * SECOND, 8_000),
+        Contact("second-hop", "B", "D", 2 * SECOND, 4 * SECOND, 8_000),
+    )
+    engine = SimulationEngine(nodes=nodes, contacts=contacts, routing_policy=StaticMinimumHop())
+    engine.add_bundle(BundleRequest("B1", "S", "D", 1_000, 0, 200 * SECOND))
+
+    snapshot = engine.run_until(102 * SECOND)
+
+    assert snapshot.routing_policy == "static_minimum_hop"
+    assert snapshot.bundles[0].status == BundleStatus.DELIVERED
+    assert snapshot.bundles[0].forwarding_history[0].contact_id == "direct-late"
+    assert snapshot.bundles[0].forwarding_history[0].receiver_acceptance_us == 101 * SECOND
+
+    time_aware = SimulationEngine(nodes=nodes, contacts=contacts)
+    time_aware.add_bundle(BundleRequest("B1", "S", "D", 1_000, 0, 200 * SECOND))
+    faster_snapshot = time_aware.run_until(4 * SECOND)
+    assert faster_snapshot.routing_policy == "contact_aware_earliest_arrival"
+    assert faster_snapshot.bundles[0].status == BundleStatus.DELIVERED
+    assert [hop.contact_id for hop in faster_snapshot.bundles[0].forwarding_history] == [
+        "first-hop",
+        "second-hop",
+    ]
+    assert faster_snapshot.bundles[0].forwarding_history[-1].receiver_acceptance_us == 3 * SECOND

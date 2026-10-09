@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import heapq
 from collections.abc import Collection
+from typing import Protocol
 
 from .model import Contact
 
@@ -66,3 +67,93 @@ def earliest_arrival_path(
                 (next_arrival, contact.to_node, next_visited, next_path),
             )
     return None
+
+
+class RoutingPolicy(Protocol):
+    """Replaceable path-selection interface; the engine still owns execution."""
+
+    name: str
+
+    def find_path(
+        self,
+        *,
+        source: str,
+        destination: str,
+        start_time_us: int,
+        payload_bytes: int,
+        contacts: tuple[Contact, ...],
+        forbidden_nodes: Collection[str],
+    ) -> tuple[Contact, ...] | None: ...
+
+
+class ContactAwareEarliestArrival:
+    name = "contact_aware_earliest_arrival"
+
+    def find_path(
+        self,
+        *,
+        source: str,
+        destination: str,
+        start_time_us: int,
+        payload_bytes: int,
+        contacts: tuple[Contact, ...],
+        forbidden_nodes: Collection[str],
+    ) -> tuple[Contact, ...] | None:
+        return earliest_arrival_path(
+            source=source,
+            destination=destination,
+            start_time_us=start_time_us,
+            payload_bytes=payload_bytes,
+            contacts=contacts,
+            forbidden_nodes=forbidden_nodes,
+        )
+
+
+class StaticMinimumHop:
+    """Minimum-hop route over the contact union; it ignores temporal path quality."""
+
+    name = "static_minimum_hop"
+
+    def find_path(
+        self,
+        *,
+        source: str,
+        destination: str,
+        start_time_us: int,
+        payload_bytes: int,
+        contacts: tuple[Contact, ...],
+        forbidden_nodes: Collection[str],
+    ) -> tuple[Contact, ...] | None:
+        adjacency: dict[str, set[str]] = {}
+        for contact in contacts:
+            if contact.to_node not in forbidden_nodes or contact.to_node == destination:
+                adjacency.setdefault(contact.from_node, set()).add(contact.to_node)
+
+        queue: list[tuple[str, tuple[str, ...]]] = [(source, ())]
+        visited = {source}
+        first_hop: str | None = None
+        while queue:
+            node_id, path = queue.pop(0)
+            if node_id == destination:
+                if path:
+                    first_hop = path[0]
+                break
+            for neighbor in sorted(adjacency.get(node_id, ())):
+                if neighbor in visited:
+                    continue
+                visited.add(neighbor)
+                queue.append((neighbor, (*path, neighbor)))
+        if first_hop is None:
+            return None
+
+        feasible: list[tuple[int, str, Contact]] = []
+        for contact in contacts:
+            if contact.from_node != source or contact.to_node != first_hop:
+                continue
+            start = max(start_time_us, contact.start_us)
+            duration = serialization_duration_us(payload_bytes, contact.rate_bits_per_second)
+            if start + duration < contact.end_us:
+                feasible.append((start, contact.contact_id, contact))
+        if not feasible:
+            return None
+        return (min(feasible, key=lambda item: (item[0], item[1]))[2],)
