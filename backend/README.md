@@ -10,4 +10,10 @@ uv pip install --python backend/.venv/Scripts/python.exe -e "backend[test]"
 backend/.venv/Scripts/python.exe -m pytest -c backend/pyproject.toml -q backend/tests
 ```
 
+To run the local API from the repository root:
+
+```powershell
+backend/.venv/Scripts/python.exe -m uvicorn leo_dtn.api:app --app-dir backend --reload
+```
+
 From the repository root on Unix-like shells, use `backend/.venv/bin/python` for the pytest command. Keep all subsequent Python commands inside this environment.

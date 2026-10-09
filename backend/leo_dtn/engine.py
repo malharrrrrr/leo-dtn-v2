@@ -85,6 +85,7 @@ class SimulationEngine:
         self._contact_cutoffs: dict[str, int] = {}
         self._queue: list[_ScheduledEvent] = []
         self._queue_sequence = 0
+        self._events_processed = 0
         self._record_sequence = 0
         self._time_us = 0
         self._records: list[EventRecord] = []
@@ -195,6 +196,14 @@ class SimulationEngine:
     def time_us(self) -> int:
         return self._time_us
 
+    @property
+    def next_event_time_us(self) -> int | None:
+        return self._queue[0].time_us if self._queue else None
+
+    @property
+    def events_processed(self) -> int:
+        return self._events_processed
+
     def add_bundle(self, request: BundleRequest) -> None:
         """Schedule one bundle generation attempt without mutating state immediately."""
         if not request.bundle_id:
@@ -247,20 +256,34 @@ class SimulationEngine:
             return None
         event = heapq.heappop(self._queue)
         self._time_us = event.time_us
+        self._events_processed += 1
         previous_record_count = len(self._records)
         self._process(event)
         if event.kind == "dispatch":
             self._dispatch_scheduled.discard(event.time_us)
         return self._records[-1] if len(self._records) > previous_record_count else None
 
-    def run_until(self, horizon_us: int) -> SimulationSnapshot:
+    def run_until(
+        self, horizon_us: int, *, max_events: int | None = None
+    ) -> SimulationSnapshot:
         if not isinstance(horizon_us, int) or isinstance(horizon_us, bool):
             raise ValueError("simulation horizon must be integer microseconds")
         if horizon_us < self._time_us:
             raise ValueError("simulation horizon cannot be in the past")
-        while self._queue and self._queue[0].time_us <= horizon_us:
+        if max_events is not None and (
+            not isinstance(max_events, int) or isinstance(max_events, bool) or max_events < 0
+        ):
+            raise ValueError("max_events must be a nonnegative integer")
+        processed = 0
+        while (
+            self._queue
+            and self._queue[0].time_us <= horizon_us
+            and (max_events is None or processed < max_events)
+        ):
             self.step()
-        self._time_us = horizon_us
+            processed += 1
+        if self.next_event_time_us is None or self.next_event_time_us > horizon_us:
+            self._time_us = horizon_us
         return self.snapshot()
 
     def run_to_completion(self) -> SimulationSnapshot:

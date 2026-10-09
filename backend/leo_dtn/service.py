@@ -1,0 +1,232 @@
+"""In-memory run control that adapts REST commands to the simulation engine."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from threading import RLock
+
+from .api_models import (
+    BundleInput,
+    ContactInput,
+    ContactInterruptionInput,
+    CreateSimulationRequest,
+    NodeInput,
+    SimulationConfigurationInput,
+)
+from .engine import SimulationEngine
+from .model import BundleRequest, Contact, ContactInterruption, Node
+from .routing import ContactAwareEarliestArrival, RoutingPolicy, StaticMinimumHop
+
+
+ROUTING_POLICIES: dict[str, type[RoutingPolicy]] = {
+    ContactAwareEarliestArrival.name: ContactAwareEarliestArrival,
+    StaticMinimumHop.name: StaticMinimumHop,
+}
+
+
+class InvalidRunTransition(Exception):
+    pass
+
+
+@dataclass(slots=True)
+class SimulationSession:
+    simulation_id: str
+    configuration: SimulationConfigurationInput
+    random_seed: int
+    horizon_us: int
+    routing_policy_name: str
+    status: str = "ready"
+    engine: SimulationEngine = field(init=False)
+    lock: RLock = field(default_factory=RLock, repr=False)
+
+    def __post_init__(self) -> None:
+        self.engine = self._new_engine()
+
+    def _new_engine(self) -> SimulationEngine:
+        try:
+            policy_type = ROUTING_POLICIES[self.routing_policy_name]
+        except KeyError as exc:
+            raise ValueError(f"unknown routing policy: {self.routing_policy_name}") from exc
+        return SimulationEngine(
+            nodes=tuple(_node_to_domain(node) for node in self.configuration.nodes),
+            contacts=tuple(_contact_to_domain(contact) for contact in self.configuration.contacts),
+            interruptions=tuple(
+                _interruption_to_domain(item) for item in self.configuration.interruptions
+            ),
+            routing_policy=policy_type(),
+        )
+
+    def initialize_bundles(self) -> None:
+        for bundle in self.configuration.bundles:
+            self.engine.add_bundle(_bundle_to_domain(bundle))
+
+    def start(self) -> None:
+        with self.lock:
+            if self.status != "ready":
+                raise InvalidRunTransition("only a ready simulation can be started")
+            self.status = "running"
+
+    def pause(self) -> None:
+        with self.lock:
+            if self.status != "running":
+                raise InvalidRunTransition("only a running simulation can be paused")
+            self.status = "paused"
+
+    def resume(self) -> None:
+        with self.lock:
+            if self.status != "paused":
+                raise InvalidRunTransition("only a paused simulation can be resumed")
+            self.status = "running"
+
+    def step(self) -> int:
+        with self.lock:
+            if self.status not in ("ready", "paused"):
+                raise InvalidRunTransition("step requires a ready or paused simulation")
+            if self._next_event_is_past_horizon():
+                self.engine.run_until(self.horizon_us, max_events=0)
+                self.status = "completed"
+                return 0
+            before = self.engine.events_processed
+            self.engine.step()
+            processed = self.engine.events_processed - before
+            if self._next_event_is_past_horizon():
+                self.engine.run_until(self.horizon_us, max_events=0)
+                self.status = "completed"
+            else:
+                self.status = "paused"
+            return processed
+
+    def advance(self, *, target_time_us: int, max_events: int) -> tuple[int, bool]:
+        with self.lock:
+            if self.status != "running":
+                raise InvalidRunTransition("advance requires a running simulation")
+            if target_time_us < self.engine.time_us or target_time_us > self.horizon_us:
+                raise ValueError("target time must be between current simulated time and horizon")
+            before = self.engine.events_processed
+            self.engine.run_until(target_time_us, max_events=max_events)
+            processed = self.engine.events_processed - before
+            reached_target = (
+                self.engine.time_us == target_time_us
+                and (
+                    self.engine.next_event_time_us is None
+                    or self.engine.next_event_time_us > target_time_us
+                )
+            )
+            if reached_target and target_time_us == self.horizon_us:
+                self.status = "completed"
+            return processed, reached_target
+
+    def reset(self) -> None:
+        with self.lock:
+            self.engine = self._new_engine()
+            self.initialize_bundles()
+            self.status = "ready"
+
+    def _next_event_is_past_horizon(self) -> bool:
+        next_time = self.engine.next_event_time_us
+        return next_time is None or next_time > self.horizon_us
+
+
+class SimulationManager:
+    """Owns in-memory sessions for one local API process."""
+
+    def __init__(self) -> None:
+        self._sessions: dict[str, SimulationSession] = {}
+        self._next_id = 1
+        self._lock = RLock()
+
+    def create(self, request: CreateSimulationRequest) -> SimulationSession:
+        configuration = request.configuration or default_scenario(request.scenario_id or "")
+        with self._lock:
+            simulation_id = f"sim-{self._next_id:06d}"
+            self._next_id += 1
+            session = SimulationSession(
+                simulation_id=simulation_id,
+                configuration=configuration,
+                random_seed=request.random_seed,
+                horizon_us=request.horizon_us,
+                routing_policy_name=request.routing_policy,
+            )
+            session.initialize_bundles()
+            self._sessions[simulation_id] = session
+            return session
+
+    def get(self, simulation_id: str) -> SimulationSession:
+        with self._lock:
+            session = self._sessions.get(simulation_id)
+        if session is None:
+            raise KeyError(simulation_id)
+        return session
+
+
+def default_scenario(scenario_id: str) -> SimulationConfigurationInput:
+    if scenario_id != "relay-vertical-slice":
+        raise KeyError(scenario_id)
+    from .scenarios import relay_vertical_slice_inputs
+
+    nodes, contacts, bundles = relay_vertical_slice_inputs()
+    return SimulationConfigurationInput(
+        nodes=tuple(
+            NodeInput(
+                node_id=item.node_id,
+                kind=item.kind,
+                buffer_capacity_bytes=item.buffer_capacity_bytes,
+                position_km=item.position_km,
+            )
+            for item in nodes
+        ),
+        contacts=tuple(
+            ContactInput(
+                contact_id=item.contact_id,
+                from_node=item.from_node,
+                to_node=item.to_node,
+                start_us=item.start_us,
+                end_us=item.end_us,
+                rate_bits_per_second=item.rate_bits_per_second,
+                propagation_delay_us=item.propagation_delay_us,
+            )
+            for item in contacts
+        ),
+        bundles=tuple(
+            BundleInput(
+                bundle_id=item.bundle_id,
+                source=item.source,
+                destination=item.destination,
+                payload_bytes=item.payload_bytes,
+                creation_time_us=item.creation_time_us,
+                ttl_us=item.ttl_us,
+            )
+            for item in bundles
+        ),
+    )
+
+
+def _node_to_domain(value: NodeInput) -> Node:
+    return Node(value.node_id, value.kind, value.buffer_capacity_bytes, value.position_km)
+
+
+def _contact_to_domain(value: ContactInput) -> Contact:
+    return Contact(
+        value.contact_id,
+        value.from_node,
+        value.to_node,
+        value.start_us,
+        value.end_us,
+        value.rate_bits_per_second,
+        value.propagation_delay_us,
+    )
+
+
+def _bundle_to_domain(value: BundleInput) -> BundleRequest:
+    return BundleRequest(
+        value.bundle_id,
+        value.source,
+        value.destination,
+        value.payload_bytes,
+        value.creation_time_us,
+        value.ttl_us,
+    )
+
+
+def _interruption_to_domain(value: ContactInterruptionInput) -> ContactInterruption:
+    return ContactInterruption(value.contact_id, value.time_us)

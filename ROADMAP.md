@@ -36,9 +36,9 @@ No deadlines are assigned. Each milestone has an independently checkable exit co
 
 **Depends on:** stable engine API from milestones 2–4.
 
-**Deliverables:** scenario/run commands, status and state queries, validation errors, export endpoints. Engine can still be imported and run without the API.
+**Deliverables:** implemented in-memory run manager, scenario/run commands, status and state queries, bounded advance, validation errors, and JSON/CSV export endpoints. The engine remains importable and directly testable without the API.
 
-**Acceptance:** API/engine integration tests verify command validation, state transitions, response snapshots, and that API code contains no forwarding/routing semantics.
+**Acceptance:** API/engine integration tests verify command validation, state transitions, response snapshots, event cursors, exports, and that API code contains no forwarding/routing semantics. The API tests run against a local Uvicorn subprocess to exercise the real HTTP boundary.
 
 ## 6. Frontend dashboard and visualization
 
