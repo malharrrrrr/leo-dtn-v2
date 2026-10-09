@@ -64,6 +64,8 @@ def test_scenario_and_simulation_snapshot_are_read_only_projections(api_client):
     assert snapshot.status_code == 200
     assert snapshot.json()["status"] == "ready"
     assert snapshot.json()["simulated_time_us"] == 0
+    full_snapshot = request(api_client, "GET", f"/simulations/{simulation_id}/snapshot")
+    assert len(full_snapshot.json()["nodes"]) == 3
     nodes = request(api_client, "GET", f"/simulations/{simulation_id}/nodes").json()
     assert {node["node_id"] for node in nodes} == {"GS-A", "SAT-R", "GS-B"}
     assert request(api_client, "GET", f"/simulations/{simulation_id}/nodes/missing").status_code == 404

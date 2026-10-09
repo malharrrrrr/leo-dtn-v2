@@ -4,3 +4,7 @@ __pycache__/
 .venv/
 *.egg-info/
 node_modules/
+.next/
+out/
+.env.local
+*.tsbuildinfo

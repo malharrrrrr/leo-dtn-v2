@@ -22,6 +22,7 @@ Invalid lifecycle commands return 409. Invalid configuration or time bounds retu
 |---|---|
 | `GET /scenarios`, `GET /scenarios/{scenario_id}` | Registered scenario summaries and validated configuration. Initially includes `relay-vertical-slice`. |
 | `GET /simulations/{id}` | Lifecycle state, simulated time, horizon, seed, routing policy, and node/contact/bundle counts. |
+| `GET /simulations/{id}/snapshot` | Full read-only current view with nodes, contacts, bundles, active transmissions, and ordered event history. |
 | `GET /simulations/{id}/nodes`, `/nodes/{node_id}` | Node kind, configured buffer, current occupancy, and optional model position. |
 | `GET /simulations/{id}/contacts` | Directed endpoints, interval, rate, propagation delay, and current status (`planned`, `active`, `interrupted`, or `completed`). |
 | `GET /simulations/{id}/bundles`, `/bundles/{bundle_id}` | Bundle metadata, current holder/status, expiry, and successful forwarding records. |
@@ -38,3 +39,5 @@ Poll run status and the compact snapshot while a run is active. Fetch event page
 ## Current limitations
 
 Only the in-memory run manager is provided; there is no authentication, persistence, durable job queue, dynamic topology editing after creation, or multi-process coordination. The current API does not expose velocity or upcoming orbital contacts because the engine does not calculate them.
+
+The development API permits browser requests from `http://localhost:3000` and `http://127.0.0.1:3000` only. Expand this allowlist only when the local frontend origin changes.

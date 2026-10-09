@@ -6,6 +6,7 @@ import json
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Query, Response
+from fastapi.middleware.cors import CORSMiddleware
 
 from .api_models import (
     AdvanceRequest,
@@ -38,6 +39,13 @@ from .service import InvalidRunTransition, SimulationManager, SimulationSession,
 
 def create_app(manager: SimulationManager | None = None) -> FastAPI:
     app = FastAPI(title="LEO-DTN Simulation API", version="0.1.0")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+        allow_credentials=False,
+        allow_methods=["GET", "POST"],
+        allow_headers=["Content-Type"],
+    )
     app.state.simulations = manager or SimulationManager()
 
     def get_session(simulation_id: str) -> SimulationSession:
@@ -90,6 +98,10 @@ def create_app(manager: SimulationManager | None = None) -> FastAPI:
     @app.get("/simulations/{simulation_id}", response_model=SimulationStatusResponse)
     def inspect_simulation(simulation_id: str):
         return _status(get_session(simulation_id))
+
+    @app.get("/simulations/{simulation_id}/snapshot", response_model=SimulationSnapshotResponse)
+    def inspect_snapshot(simulation_id: str):
+        return _snapshot(get_session(simulation_id))
 
     @app.post("/simulations/{simulation_id}/start", response_model=SimulationSnapshotResponse)
     def start_simulation(simulation_id: str):
