@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "leo-dtn-engine"
+version = "0.1.0"
+description = "Deterministic discrete-event engine for LEO-DTN experiments"
+requires-python = ">=3.11"
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
