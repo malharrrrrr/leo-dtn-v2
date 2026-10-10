@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import type { BundleState, NodeState, SimulationSnapshot } from "@/lib/contracts";
@@ -136,6 +136,7 @@ function clearsEarth(a: THREE.Vector3, b: THREE.Vector3): boolean {
 
 export function NetworkScene({ snapshot, selectedBundleId, followPacket, onSelectNode }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
+  const [hover, setHover] = useState<{ nodeId: string; x: number; y: number } | null>(null);
   const stateRef = useRef({ snapshot, selectedBundleId, followPacket, onSelectNode });
   stateRef.current = { snapshot, selectedBundleId, followPacket, onSelectNode };
 
@@ -193,14 +194,27 @@ export function NetworkScene({ snapshot, selectedBundleId, followPacket, onSelec
     const network = new THREE.Group(); scene.add(network);
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
-    const onPointerDown = (event: PointerEvent) => {
+    const pickNode = (event: PointerEvent) => {
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(pointer, camera);
       const hit = raycaster.intersectObjects(network.children, true).find((item) => item.object.userData.nodeId);
-      if (hit?.object.userData.nodeId) stateRef.current.onSelectNode(hit.object.userData.nodeId as string);
+      return { nodeId: hit?.object.userData.nodeId as string | undefined, x: event.clientX - rect.left, y: event.clientY - rect.top };
     };
+    const onPointerMove = (event: PointerEvent) => {
+      const picked = pickNode(event);
+      setHover((current) => picked.nodeId
+        ? current?.nodeId === picked.nodeId && current.x === picked.x && current.y === picked.y ? current : picked as { nodeId: string; x: number; y: number }
+        : current ? null : current);
+    };
+    const onPointerLeave = () => setHover(null);
+    const onPointerDown = (event: PointerEvent) => {
+      const picked = pickNode(event);
+      if (picked.nodeId) stateRef.current.onSelectNode(picked.nodeId);
+    };
+    renderer.domElement.addEventListener("pointermove", onPointerMove);
+    renderer.domElement.addEventListener("pointerleave", onPointerLeave);
     renderer.domElement.addEventListener("pointerdown", onPointerDown);
 
     const observer = new ResizeObserver(() => {
@@ -404,6 +418,8 @@ export function NetworkScene({ snapshot, selectedBundleId, followPacket, onSelec
 
     return () => {
       cancelAnimationFrame(frame); observer.disconnect();
+      renderer.domElement.removeEventListener("pointermove", onPointerMove);
+      renderer.domElement.removeEventListener("pointerleave", onPointerLeave);
       renderer.domElement.removeEventListener("pointerdown", onPointerDown);
       controls.dispose();
       scene.traverse((object) => {
@@ -420,5 +436,30 @@ export function NetworkScene({ snapshot, selectedBundleId, followPacket, onSelec
     };
   }, []);
 
-  return <div className="scene-host" ref={hostRef} aria-label="Interactive three-dimensional network visualization" />;
+  const hoveredNode = hover && snapshot?.nodes.find((node) => node.node_id === hover.nodeId);
+  const activeContacts = hoveredNode && snapshot
+    ? snapshot.contacts.filter((contact) => contact.status === "active" && (contact.from_node === hoveredNode.node_id || contact.to_node === hoveredNode.node_id)).length
+    : 0;
+  const speed = hoveredNode?.velocity_km_s
+    ? Math.hypot(...hoveredNode.velocity_km_s).toFixed(2)
+    : null;
+  const position = hoveredNode?.position_km;
+
+  return (
+    <div className="scene-host" ref={hostRef} aria-label="Interactive three-dimensional network visualization">
+      {hoveredNode && (
+        <div className="node-hover-card" style={{ left: Math.min(hover.x + 14, Math.max(8, (hostRef.current?.clientWidth ?? 280) - 248)), top: Math.min(hover.y + 14, Math.max(8, (hostRef.current?.clientHeight ?? 160) - 152)) }} role="tooltip">
+          <div className="node-hover-heading">
+            <span className={`node-hover-marker ${hoveredNode.kind}`} />
+            <div><b>{hoveredNode.node_id}</b><small>{hoveredNode.kind === "satellite" ? "Satellite" : "Ground station"}</small></div>
+          </div>
+          {position && <div className="node-hover-row"><span>Position (ECEF)</span><b>{position.map((value) => `${value.toFixed(0)} km`).join(", ")}</b></div>}
+          {hoveredNode.kind === "satellite" && hoveredNode.orbit && <div className="node-hover-row"><span>Orbit</span><b>{hoveredNode.orbit.altitude_km.toFixed(0)} km · {hoveredNode.orbit.inclination_deg.toFixed(1)}° inc.</b></div>}
+          {speed && <div className="node-hover-row"><span>Speed</span><b>{speed} km/s</b></div>}
+          <div className="node-hover-row"><span>Buffer</span><b>{(hoveredNode.buffer_occupancy_bytes / 1_000_000).toFixed(1)} / {(hoveredNode.buffer_capacity_bytes / 1_000_000).toFixed(1)} MB</b></div>
+          <div className="node-hover-row"><span>Active links</span><b>{activeContacts}</b></div>
+        </div>
+      )}
+    </div>
+  );
 }

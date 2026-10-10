@@ -129,6 +129,16 @@ input:focus, select:focus { border-color: #3d91e7; box-shadow: 0 0 0 2px rgba(54
 .scene-frame { position: relative; flex: 1; min-height: 300px; overflow: hidden; border: 1px solid #263448; border-radius: 12px; background: radial-gradient(ellipse at center, #0b1b2c 0, #07101b 57%, #050a11 100%); }
 .scene-host { position: absolute; inset: 0; }
 .scene-host canvas { display: block; width: 100%; height: 100%; }
+.node-hover-card { position: absolute; z-index: 4; width: 232px; padding: 10px 11px; border: 1px solid rgba(91, 142, 181, .72); border-radius: 9px; background: rgba(8, 17, 28, .96); box-shadow: 0 10px 28px rgba(0, 0, 0, .38); pointer-events: none; backdrop-filter: blur(8px); }
+.node-hover-heading { display: flex; align-items: center; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid #27394b; }
+.node-hover-heading > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.node-hover-heading b { color: #e7f2fc; font: 700 10px "DM Mono", monospace; overflow-wrap: anywhere; }
+.node-hover-heading small { color: #78a3c2; font-size: 8px; }
+.node-hover-marker { width: 9px; height: 9px; flex: 0 0 9px; border-radius: 50%; background: #59b9ff; box-shadow: 0 0 10px rgba(89, 185, 255, .65); }
+.node-hover-marker.ground_station { background: #42dec3; box-shadow: 0 0 10px rgba(66, 222, 195, .65); }
+.node-hover-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding-top: 7px; }
+.node-hover-row span { color: #8294a8; font-size: 8px; white-space: nowrap; }
+.node-hover-row b { color: #dbe8f5; font: 600 8px "DM Mono", monospace; text-align: right; overflow-wrap: anywhere; }
 .topology-view { position: absolute; inset: 0; width: 100%; height: 100%; background: #07101b; }
 .topology-node { cursor: pointer; outline: none; }
 .topology-node:focus circle, .topology-node:focus polygon { stroke: #f6c667; stroke-width: 3; }
