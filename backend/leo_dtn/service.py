@@ -44,6 +44,14 @@ class SimulationSession:
     lock: RLock = field(default_factory=RLock, repr=False)
 
     def __post_init__(self) -> None:
+        if self.configuration.orbital_contact_generation:
+            self.horizon_us = max(
+                self.horizon_us,
+                max(
+                    (bundle.creation_time_us + bundle.ttl_us for bundle in self.configuration.bundles),
+                    default=0,
+                ),
+            )
         self.initial_horizon_us = self.horizon_us
         self.engine = self._new_engine()
 
@@ -152,12 +160,20 @@ class SimulationSession:
             self.status = "ready"
 
     def _ensure_contact_plan(self, target_time_us: int) -> None:
-        """Keep an orbital contact lookahead ahead of an unbounded run."""
-        if target_time_us + CONTACT_PLAN_LOOKAHEAD_US < self.horizon_us:
+        """Keep enough future contacts for a bundle to route before its TTL."""
+        max_bundle_ttl_us = max(
+            (bundle.ttl_us for bundle in self.configuration.bundles),
+            default=0,
+        )
+        required_horizon_us = max(
+            target_time_us + CONTACT_PLAN_LOOKAHEAD_US,
+            target_time_us + max_bundle_ttl_us,
+        )
+        if required_horizon_us <= self.horizon_us:
             return
         self.horizon_us = max(
             self.horizon_us + CONTACT_PLAN_EXTENSION_US,
-            target_time_us + CONTACT_PLAN_LOOKAHEAD_US,
+            required_horizon_us,
         )
         nodes = tuple(_node_to_domain(node) for node in self.configuration.nodes)
         generated = generate_contact_plan(

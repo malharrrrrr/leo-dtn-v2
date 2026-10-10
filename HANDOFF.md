@@ -7,7 +7,7 @@
 
 1. Read this file, then `AGENTS.md` for non-negotiable working rules.
 2. Read `PROJECT.md`, `ROADMAP.md`, `docs/architecture.md`, and `docs/simulation-model.md` before changing simulation or architecture behavior. Read `docs/routing.md`, `docs/api-contract.md`, or `docs/experiments.md` for work in those areas.
-3. Run `git status --short` and inspect relevant `git diff` before editing. The checkout has accumulated user work and is **not clean**. Do not reset, clean, overwrite, or assume all modifications are yours.
+3. Run `git status --short` and inspect relevant `git diff` before editing. Preserve any user changes already present; do not reset, clean, overwrite, or assume all modifications are yours.
 4. Make one focused change, update the relevant documentation and this handoff when project status materially changes, then run the checks relevant to that change.
 
 ## Project in one minute
@@ -58,7 +58,8 @@ This is not a real satellite communications system. Satellite motion is currentl
 - Keep future contact windows, current links, and historical forwarding clearly distinct in the UI.
 - The current frontend has the dashboard at `/`. There is no `/analysis` route yet; a request to `/analysis` returns 404. The Experiments navigation item is not a completed analysis page.
 - Orbital sessions now advance in an API-owned task while the API process is alive, even when the browser is closed. The task requests deterministic one-second simulation advances about every 120 ms; pausing stops advancement. The engine itself remains free of wall-clock reads. Explicit-contact runs are still advanced through API commands.
-- Orbital contact generation uses a rolling lookahead: the submitted horizon is initial planned-contact coverage, extended as simulated time approaches it. Configured bundles repeat at `bundle_generation_interval_us`; the dashboard default is one bundle every 60 simulated seconds. Each repeat has a deterministic ID and ordinary buffer, route, TTL, and metric behavior.
+- Orbital contact generation plans initially through the latest configured bundle expiry, even when the requested minimum horizon is shorter. During playback it maintains at least the maximum configured bundle TTL ahead of simulation time, extending deterministically in one-hour batches (with a 120-second minimum for short/no-TTL scenarios). This lets contact-aware earliest-arrival routing compare contacts through a bundle's expiry before missing earlier first hops. The regression uses the default Mumbai/New York constellation and verifies BND-001 starts via SAT-01 at t=2s with a 600-second requested minimum. Geometry sampling can still miss short windows; route estimates also ignore future contention and admission failures.
+- Configured bundles repeat at `bundle_generation_interval_us`; the dashboard default is one bundle every 60 simulated seconds. Each repeat has a deterministic ID and ordinary buffer, route, TTL, and metric behavior; the rolling plan stays ahead by the template TTL.
 - Contact starts now wake queued bundles for a routing reevaluation. This matters for contacts added by rolling plan extension; without that wake-up a bundle could remain buffered after its new contact became active. The dashboard's default bundle TTL is six hours so it can survive longer store-carry-forward waits between distant ground stations.
 - Dashboard defaults now place the ground stations in Mumbai and New York so a long relay path is more visible. The source default is Mumbai and destination is New York.
 
@@ -91,12 +92,12 @@ On Unix, use `backend/.venv/bin/python`. Do not make engine tests depend on runn
 
 ## Current checkout and known state
 
-- The working tree contains numerous modified tracked files plus untracked project files from earlier work. Inspect `git status --short` and the relevant diff before changing anything. No clean baseline or commit should be assumed.
+- Always inspect `git status --short` and relevant diffs before edits; preserve unrelated user changes. This handoff describes the committed project state, not a promise that a future checkout is clean.
 - The implementation includes a deterministic event engine, finite bundle buffers and lifecycle, two routing policies, metrics/exports, FastAPI controls, circular orbital motion, and geometry-derived contacts.
-- The dashboard has a configurable constellation, seeded satellite placement, a Three.js globe, topology view, playback controls, bundle/node/network panels, and engine-state polling. The default run horizon is 600 seconds.
+- The dashboard has a configurable constellation, seeded satellite placement, a Three.js globe, topology view, playback controls, bundle/node/network panels, and engine-state polling. The default minimum contact-plan horizon is 600 seconds; orbital sessions extend actual planned coverage through bundle TTL.
 - Recent frontend terminal fixes: trails are drawn only after at least two samples (avoids Three.js empty-geometry warnings); Next dev origin allows `127.0.0.1`. Restart the dev server to load that Next config.
 - A logged `GET /analysis 404` is expected until an analysis route is deliberately implemented. It does not prevent the `/` dashboard from running.
-- Latest verification: `backend/.venv/Scripts/python.exe -m pytest -c backend/pyproject.toml -q backend/tests` passed (42 tests); `npm run typecheck` and `npm run lint` passed; `npm run build` passed. The first sandboxed pytest/build attempts failed to resolve Windows paths; rerunning the same commands outside the sandbox succeeded.
+- Latest verification: `backend/.venv/Scripts/python.exe -m pytest -c backend/pyproject.toml -q backend/tests` passed (44 tests; local Uvicorn tests require local socket access). From `frontend/`, `npm run typecheck`, `npm run lint`, and `npm run build` passed. A sandboxed build hit Windows path canonicalization permissions; the same build passed with filesystem access.
 - The working roadmap says circular-orbit/contact behavior is implemented but still needs long-run and interactive validation. Do not mark those milestones complete based only on compilation.
 
 ## Suggested next task

@@ -90,6 +90,53 @@ def test_default_demo_orbits_cover_both_ground_stations_at_start():
     assert not (visible(mumbai, sat_singapore, 0) and visible(sat_singapore, new_york, 0))
 
 
+def test_orbital_session_plans_through_bundle_ttl_before_choosing_first_hop():
+    from leo_dtn.api_models import BundleInput, NodeInput, SimulationConfigurationInput
+    from leo_dtn.service import SimulationSession
+
+    orbits = ((59, 22), (102, 1.6), (0, 53), (45, 0), (90, 37), (135, 90), (180, 143), (225, 196))
+    nodes = (
+        NodeInput(
+            node_id="GS-MUMBAI", kind="ground_station", buffer_capacity_bytes=10_000_000_000,
+            position_km=ground_position(19.076, 72.878),
+        ),
+        *(NodeInput(
+            node_id=f"SAT-{index:02d}", kind="satellite", buffer_capacity_bytes=10_000_000_000,
+            orbit=CircularOrbit(550, 53, raan, phase),
+        ) for index, (raan, phase) in enumerate(orbits, 1)),
+        NodeInput(
+            node_id="GS-NEW-YORK", kind="ground_station", buffer_capacity_bytes=10_000_000_000,
+            position_km=ground_position(40.7128, -74.006),
+        ),
+    )
+    ttl_us = 21_600_000_000
+    config = SimulationConfigurationInput(
+        nodes=nodes,
+        bundles=(BundleInput(
+            bundle_id="BND-001", source="GS-MUMBAI", destination="GS-NEW-YORK",
+            payload_bytes=50_000_000, creation_time_us=2_000_000, ttl_us=ttl_us,
+        ),),
+        orbital_contact_generation=True,
+        contact_sample_interval_us=10_000_000,
+        minimum_elevation_deg=10,
+        orbital_link_rate_bits_per_second=100_000_000,
+    )
+    session = SimulationSession(
+        "sim-route-lookahead", config, 42, 600_000_000,
+        "contact_aware_earliest_arrival",
+    )
+    session.initialize_bundles()
+
+    assert session.horizon_us >= 2_000_000 + ttl_us
+    snapshot = session.engine.run_until(2_000_000)
+    first_hop = next(event for event in snapshot.events if event.kind == "transmission_started")
+    first_contact = next(contact for contact in snapshot.contacts if contact.contact_id == first_hop.contact_id)
+    assert (first_contact.from_node, first_contact.to_node) == ("GS-MUMBAI", "SAT-01")
+
+    session._ensure_contact_plan(1_000_000_000)
+    assert session.horizon_us >= 1_000_000_000 + ttl_us
+
+
 def test_orbital_session_extends_plan_without_ending_at_initial_horizon():
     from leo_dtn.api_models import NodeInput, SimulationConfigurationInput
     from leo_dtn.service import SimulationSession

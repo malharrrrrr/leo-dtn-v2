@@ -248,7 +248,8 @@ export function Dashboard() {
             </select>
             <p className="algorithm-copy">{routingDescription}</p>
             <div className="field-row"><label className="field-label" htmlFor="seed">Random seed</label><input id="seed" type="number" value={seed} onChange={(event) => setSeed(Number(event.target.value))} /></div>
-            <div className="field-row"><label className="field-label" htmlFor="horizon">{configuration.orbital_contact_generation ? "Initial contact plan (s)" : "Run horizon (s)"}</label><input id="horizon" type="number" min="1" value={horizonSeconds} onChange={(event) => setHorizonSeconds(Number(event.target.value))} /></div>
+            <div className="field-row"><label className="field-label" htmlFor="horizon">{configuration.orbital_contact_generation ? "Minimum contact plan (s)" : "Run horizon (s)"}</label><input id="horizon" type="number" min="1" value={horizonSeconds} onChange={(event) => setHorizonSeconds(Number(event.target.value))} /></div>
+            {configuration.orbital_contact_generation && <p className="algorithm-copy">The plan expands through bundle TTL so routing can compare full paths before a contact passes.</p>}
             <button className="primary full-width" onClick={startNewSimulation} disabled={startDisabled}><Play size={15} /> Create and run</button>
             <div className="control-row">
               <IconButton title="Pause simulation" onClick={() => sendControl("pause")} active={status === "running"}><Pause size={16} /></IconButton>

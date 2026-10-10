@@ -52,9 +52,9 @@ No deadlines are assigned. Each milestone has an independently checkable exit co
 
 **Depends on:** validated contact and node interfaces.
 
-**Deliverables:** implemented circular Kepler position propagation, fixed Earth-frame ground stations, engine-returned ECEF state/velocity, and reproducible line-of-sight contact generation with a rolling lookahead for continuous orbital playback. The dashboard can generate recurring bundle traffic at a configured simulation-time interval.
+**Deliverables:** implemented circular Kepler position propagation, fixed Earth-frame ground stations, engine-returned ECEF state/velocity, and reproducible line-of-sight contact generation with a rolling lookahead for continuous orbital playback. Orbital routing plans through configured bundle expiry and maintains TTL-sized coverage for recurring traffic. The dashboard can generate recurring bundle traffic at a configured simulation-time interval.
 
-**Acceptance:** positions change deterministically with simulated time; generated contacts obey the declared spherical-Earth and minimum-elevation model, disappear at computed window end, the rolling plan continues beyond its initial horizon, and identical inputs replay identically. Recurring bundle IDs and generation times are deterministic. State clearly that this is simplified orbital propagation, not a high-fidelity operational model. Validate long-run cost and browser playback interactively before calling the milestone complete.
+**Acceptance:** positions change deterministically with simulated time; generated contacts obey the declared spherical-Earth and minimum-elevation model, disappear at computed window end, the rolling plan continues beyond its minimum horizon and covers bundle TTL, and identical inputs replay identically. A regression proves the initial route uses an early viable contact even when delivery requires contacts beyond the requested minimum horizon. Recurring bundle IDs and generation times are deterministic. State clearly that this is simplified orbital propagation, not a high-fidelity operational model. Validate long-run cost and browser playback interactively before calling the milestone complete.
 
 ## 8. End-to-end validation and academic evaluation
 

@@ -25,7 +25,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The dashboard uses the API at `http://127.0.0.1:8000` by default. Orbital runs continue beyond their initial contact-plan lookahead and generate a bundle every 60 simulated seconds by default. The API advances those runs while it remains on, even if the dashboard is closed; pausing stops simulated time and new traffic. Restarting the API loses in-memory runs. To run backend tests, from the repository root use:
+Open [http://localhost:3000](http://localhost:3000). The dashboard uses the API at `http://127.0.0.1:8000` by default. Orbital runs plan contacts through configured bundle TTL, then maintain that lookahead as simulated time advances so earliest-arrival routing can compare complete paths before forwarding. Runs generate a bundle every 60 simulated seconds by default. The API advances those runs while it remains on, even if the dashboard is closed; pausing stops simulated time and new traffic. Restarting the API loses in-memory runs. To run backend tests, from the repository root use:
 
 ```powershell
 backend/.venv/Scripts/python.exe -m pytest -c backend/pyproject.toml -q backend/tests
