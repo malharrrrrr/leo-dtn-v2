@@ -192,15 +192,24 @@ export function NetworkScene({ snapshot, selectedBundleId, followPacket, onSelec
     scene.add(stars);
 
     const network = new THREE.Group(); scene.add(network);
-    const raycaster = new THREE.Raycaster();
-    const pointer = new THREE.Vector2();
+    const nodeGlyphs = new Map<string, THREE.Group>();
     const pickNode = (event: PointerEvent) => {
       const rect = renderer.domElement.getBoundingClientRect();
-      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(pointer, camera);
-      const hit = raycaster.intersectObjects(network.children, true).find((item) => item.object.userData.nodeId);
-      return { nodeId: hit?.object.userData.nodeId as string | undefined, x: event.clientX - rect.left, y: event.clientY - rect.top };
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      camera.updateMatrixWorld();
+      let nearest: { nodeId: string; distance: number; depth: number } | null = null;
+      for (const [nodeId, glyph] of nodeGlyphs) {
+        const screen = glyph.getWorldPosition(new THREE.Vector3()).project(camera);
+        if (screen.z < -1 || screen.z > 1) continue;
+        const screenX = (screen.x + 1) * rect.width / 2;
+        const screenY = (1 - screen.y) * rect.height / 2;
+        const distance = Math.hypot(screenX - x, screenY - y);
+        if (distance <= 32 && (!nearest || distance < nearest.distance || (distance === nearest.distance && screen.z < nearest.depth))) {
+          nearest = { nodeId, distance, depth: screen.z };
+        }
+      }
+      return { nodeId: nearest?.nodeId, x, y };
     };
     const onPointerMove = (event: PointerEvent) => {
       const picked = pickNode(event);
@@ -231,7 +240,6 @@ export function NetworkScene({ snapshot, selectedBundleId, followPacket, onSelec
     let packetMarker: THREE.Group | null = null;
     const contactLines = new Map<string, THREE.Mesh>();
     const contactArrows = new Map<string, THREE.Mesh>();
-    const nodeGlyphs = new Map<string, THREE.Group>();
     const satelliteTrails = new Map<string, { line: THREE.Line; points: THREE.Vector3[] }>();
     const pathLines: THREE.Line[] = [];
     let packetTrail: THREE.Line | null = null;
