@@ -32,6 +32,7 @@ LEO-DTN is an academic simulator and visualization platform for store-carry-forw
 - Run every Python command through the project virtual environment: `backend/.venv/Scripts/python.exe` on Windows or `backend/.venv/bin/python` on Unix. Do not fall back to the system Python after the venv exists.
 - Update the relevant specification and `ROADMAP.md` when scope, semantics, API contracts, or acceptance criteria change.
 - Keep `HANDOFF.md` current after substantial work: update checkout state, verified commands, known issues, and the next useful task for an incoming agent.
+- Commit every file-changing task before ending the prompt, preferably as one focused commit per prompt. Include only changes for that task; inspect the working tree first and do not sweep in unrelated or pre-existing user changes. For read-only prompts, no commit is needed. If the task explicitly says not to commit, follow that instruction. If Git cannot write the index or create the commit, explain the blocker and request the required access instead of silently leaving the work uncommitted.
 - Keep changes focused. Avoid placeholder modules, speculative abstractions, unrelated cleanup, and dependencies without a demonstrated need.
 - Do not install dependencies or initialize application scaffolding without a project task that calls for implementation.
 
