@@ -59,6 +59,7 @@ This is not a real satellite communications system. Satellite motion is currentl
 - The current frontend has the dashboard at `/`. There is no `/analysis` route yet; a request to `/analysis` returns 404. The Experiments navigation item is not a completed analysis page.
 - Orbital sessions now advance in an API-owned task while the API process is alive, even when the browser is closed. The task requests deterministic one-second simulation advances about every 120 ms; pausing stops advancement. The engine itself remains free of wall-clock reads. Explicit-contact runs are still advanced through API commands.
 - Orbital contact generation uses a rolling lookahead: the submitted horizon is initial planned-contact coverage, extended as simulated time approaches it. Configured bundles repeat at `bundle_generation_interval_us`; the dashboard default is one bundle every 60 simulated seconds. Each repeat has a deterministic ID and ordinary buffer, route, TTL, and metric behavior.
+- Contact starts now wake queued bundles for a routing reevaluation. This matters for contacts added by rolling plan extension; without that wake-up a bundle could remain buffered after its new contact became active. The dashboard's default bundle TTL is six hours so it can survive longer store-carry-forward waits between distant ground stations.
 - Dashboard defaults now place the ground stations in Mumbai and New York so a long relay path is more visible. The source default is Mumbai and destination is New York.
 
 ## Run and verify locally

@@ -290,6 +290,24 @@ def test_recurring_bundle_stream_generates_deterministic_bundle_ids():
     ]
 
 
+def test_newly_planned_contact_start_wakes_bundle_waiting_at_relay():
+    nodes = (
+        Node("RELAY", NodeKind.SATELLITE, 2_000),
+        Node("DEST", NodeKind.GROUND_STATION, 2_000),
+    )
+    engine = SimulationEngine(nodes=nodes, contacts=())
+    engine.add_bundle(BundleRequest("B1", "RELAY", "DEST", 1_000, 0, 100 * SECOND))
+    at_relay = engine.run_until(3 * SECOND)
+    assert at_relay.bundles[0].status == BundleStatus.QUEUED
+    assert at_relay.bundles[0].holder == "RELAY"
+
+    engine.extend_contact_plan((Contact("RELAY-DEST", "RELAY", "DEST", 5 * SECOND, 10 * SECOND, 8_000),))
+    delivered = engine.run_until(7 * SECOND)
+
+    assert delivered.bundles[0].status == BundleStatus.DELIVERED
+    assert [hop.transmission_start_us for hop in delivered.bundles[0].forwarding_history] == [5 * SECOND]
+
+
 def test_routing_policy_is_replaceable_without_changing_event_execution():
     nodes = (
         Node("S", NodeKind.GROUND_STATION, 2_000),

@@ -30,7 +30,7 @@ const INITIAL_CONFIG: SimulationConfig = {
   ],
   contacts: [],
   bundles: [
-    { bundle_id: "BND-001", source: "GS-MUMBAI", destination: "GS-NEW-YORK", payload_bytes: 50_000_000, creation_time_us: 2_000_000, ttl_us: 3_600_000_000 },
+    { bundle_id: "BND-001", source: "GS-MUMBAI", destination: "GS-NEW-YORK", payload_bytes: 50_000_000, creation_time_us: 2_000_000, ttl_us: 21_600_000_000 },
   ],
   bundle_generation_interval_us: 60_000_000,
   interruptions: [],
@@ -78,7 +78,7 @@ export function Dashboard() {
   const [manualOrbit, setManualOrbit] = useState({ altitude_km: 550, inclination_deg: 53, raan_deg: 0, phase_deg: 0 });
   const [showContactForm, setShowContactForm] = useState(false);
   const [contactDraft, setContactDraft] = useState({ from: "GS-MUMBAI", to: "SAT-01", start: "0", end: "10", rate: "100" });
-  const [advanced, setAdvanced] = useState({ ttlSeconds: 3600, bundleSizeMb: 50, bufferGb: 10, linkRateMbps: 100, trafficIntervalSeconds: 60 });
+  const [advanced, setAdvanced] = useState({ ttlSeconds: 21600, bundleSizeMb: 50, bufferGb: 10, linkRateMbps: 100, trafficIntervalSeconds: 60 });
 
   useEffect(() => { snapshotRef.current = snapshot; }, [snapshot]);
 

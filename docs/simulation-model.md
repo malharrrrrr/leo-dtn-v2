@@ -10,6 +10,8 @@ The priority queue orders by `(timestamp, event_priority, insertion_sequence)`. 
 
 Events scheduled at the current timestamp are accepted and processed by the same queue ordering, including a newly inserted event whose priority precedes another pending event at that timestamp. Events scheduled in the past are rejected. Zero-duration state transitions may be scheduled at current time, but a non-empty payload has positive serialization duration under the integer/positive-rate rules. Guard against unbounded same-time event loops (e.g. detect repeated zero-time transitions or impose a fail-fast event-count limit per timestamp). A finite explicit-contact run stops at its configured horizon. An orbital dashboard run treats its configured horizon as the initial contact-plan lookahead and extends the plan deterministically as simulated time approaches its end; the engine advances only when a caller requests it, never from wall-clock time.
 
+Every contact-start event schedules a routing reevaluation at the same timestamp after contact starts have been processed. This is required for bundles already waiting in a buffer to use newly available contacts, including contacts appended by rolling plan extension.
+
 Deterministic replay requires normalized config, explicit random seed, stable identifiers/iteration order, this ordering rule, and no dependence on hash iteration, wall clock, thread scheduling, or unseeded randomness.
 
 ## Nodes

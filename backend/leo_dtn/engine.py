@@ -383,6 +383,7 @@ class SimulationEngine:
     def _process(self, event: _ScheduledEvent) -> None:
         if event.kind == "contact_start":
             self._record("contact_started", contact_id=event.contact_id)
+            self._schedule_route_at_current_time()
         elif event.kind == "contact_end":
             self._handle_contact_end(event.contact_id, event.time_us)
         elif event.kind == "contact_interruption":
