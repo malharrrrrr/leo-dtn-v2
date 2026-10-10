@@ -8,6 +8,8 @@ export interface NodeConfig {
   kind: NodeKind;
   buffer_capacity_bytes: number;
   position_km: [number, number, number] | null;
+  velocity_km_s?: [number, number, number] | null;
+  orbit?: { altitude_km: number; inclination_deg: number; raan_deg: number; phase_deg: number } | null;
 }
 
 export interface ContactConfig {
@@ -33,7 +35,12 @@ export interface SimulationConfig {
   nodes: NodeConfig[];
   contacts: ContactConfig[];
   bundles: BundleConfig[];
+  bundle_generation_interval_us?: number | null;
   interruptions: { contact_id: string; time_us: number }[];
+  orbital_contact_generation?: boolean;
+  contact_sample_interval_us?: number;
+  minimum_elevation_deg?: number;
+  orbital_link_rate_bits_per_second?: number;
 }
 
 export interface ForwardingRecord {
@@ -43,10 +50,14 @@ export interface ForwardingRecord {
   transmission_start_us: number;
   serialization_complete_us: number;
   receiver_acceptance_us: number;
+  from_position_km: [number, number, number] | null;
+  to_position_km: [number, number, number] | null;
 }
 
 export interface NodeState extends NodeConfig {
   buffer_occupancy_bytes: number;
+  position_km: [number, number, number] | null;
+  velocity_km_s: [number, number, number] | null;
 }
 
 export interface ContactState extends ContactConfig {

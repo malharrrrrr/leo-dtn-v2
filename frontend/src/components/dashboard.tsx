@@ -5,26 +5,39 @@ import {
   Activity, AlertCircle, ChevronDown, CircleHelp, Globe2, Layers3, Link2, LoaderCircle,
   Pause, Play, Plus, RotateCcw, Satellite, SkipForward, Sparkles, Waypoints,
 } from "lucide-react";
-import { advanceSimulation, createSimulation, getMetrics, postControl } from "@/lib/api";
+import { advanceSimulation, createSimulation, getMetrics, getSimulation, postControl } from "@/lib/api";
 import type { BundleConfig, BundleState, ContactConfig, Metrics, NodeConfig, RoutingPolicy, RunStatus, SimulationConfig, SimulationSnapshot } from "@/lib/contracts";
 import { NetworkScene } from "./network-scene";
 import { NetworkTopology } from "./network-topology";
 
 const EARTH_RADIUS_KM = 6371;
+const groundPosition = (latitude: number, longitude: number): [number, number, number] => {
+  const lat = latitude * Math.PI / 180; const lon = longitude * Math.PI / 180;
+  return [EARTH_RADIUS_KM * Math.cos(lat) * Math.cos(lon), EARTH_RADIUS_KM * Math.cos(lat) * Math.sin(lon), EARTH_RADIUS_KM * Math.sin(lat)];
+};
+const DEFAULT_ORBITS = [
+  [59, 22], [102, 1.6], [0, 53], [45, 0], [90, 37], [135, 90], [180, 143], [225, 196],
+];
 const INITIAL_CONFIG: SimulationConfig = {
   nodes: [
-    { node_id: "GS-MUMBAI", kind: "ground_station", buffer_capacity_bytes: 10_000_000_000, position_km: [EARTH_RADIUS_KM, 0, 0] },
-    { node_id: "SAT-01", kind: "satellite", buffer_capacity_bytes: 10_000_000_000, position_km: [0, 6900, 0] },
-    { node_id: "GS-SINGAPORE", kind: "ground_station", buffer_capacity_bytes: 10_000_000_000, position_km: [0, 0, -EARTH_RADIUS_KM] },
+    { node_id: "GS-MUMBAI", kind: "ground_station", buffer_capacity_bytes: 10_000_000_000, position_km: groundPosition(19.076, 72.878) },
+    ...Array.from({ length: 8 }, (_, index) => ({
+      node_id: `SAT-${String(index + 1).padStart(2, "0")}`, kind: "satellite" as const,
+      buffer_capacity_bytes: 10_000_000_000, position_km: null,
+      orbit: { altitude_km: 550, inclination_deg: 53, raan_deg: DEFAULT_ORBITS[index][0], phase_deg: DEFAULT_ORBITS[index][1] },
+    })),
+    { node_id: "GS-NEW-YORK", kind: "ground_station", buffer_capacity_bytes: 10_000_000_000, position_km: groundPosition(40.7128, -74.006) },
   ],
-  contacts: [
-    { contact_id: "C-MUM-SAT", from_node: "GS-MUMBAI", to_node: "SAT-01", start_us: 0, end_us: 10_000_000, rate_bits_per_second: 100_000_000, propagation_delay_us: 2_000 },
-    { contact_id: "C-SAT-SIN", from_node: "SAT-01", to_node: "GS-SINGAPORE", start_us: 20_000_000, end_us: 30_000_000, rate_bits_per_second: 100_000_000, propagation_delay_us: 2_000 },
-  ],
+  contacts: [],
   bundles: [
-    { bundle_id: "BND-001", source: "GS-MUMBAI", destination: "GS-SINGAPORE", payload_bytes: 5_000_000, creation_time_us: 2_000_000, ttl_us: 3_600_000_000 },
+    { bundle_id: "BND-001", source: "GS-MUMBAI", destination: "GS-NEW-YORK", payload_bytes: 50_000_000, creation_time_us: 2_000_000, ttl_us: 3_600_000_000 },
   ],
+  bundle_generation_interval_us: 60_000_000,
   interruptions: [],
+  orbital_contact_generation: true,
+  contact_sample_interval_us: 10_000_000,
+  minimum_elevation_deg: 10,
+  orbital_link_rate_bits_per_second: 100_000_000,
 };
 
 const seconds = (us: number) => `${(us / 1_000_000).toFixed(2)} s`;
@@ -50,22 +63,22 @@ export function Dashboard() {
   const [routingPolicy, setRoutingPolicy] = useState<RoutingPolicy>("contact_aware_earliest_arrival");
   const [seed, setSeed] = useState(42);
   const [randomCount, setRandomCount] = useState(12);
-  const [horizonSeconds, setHorizonSeconds] = useState(120);
+  const [horizonSeconds, setHorizonSeconds] = useState(600);
   const [snapshot, setSnapshot] = useState<SimulationSnapshot | null>(null);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [selectedBundleId, setSelectedBundleId] = useState<string | null>(INITIAL_CONFIG.bundles[0].bundle_id);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [followPacket, setFollowPacket] = useState(false);
+  const [followPacket, setFollowPacket] = useState(true);
   const [viewMode, setViewMode] = useState<"globe" | "topology">("globe");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inFlight = useRef(false);
   const snapshotRef = useRef<SimulationSnapshot | null>(null);
-  const [manualPosition, setManualPosition] = useState<[number, number, number]>([7000, 0, 0]);
   const [manualNodeId, setManualNodeId] = useState("SAT-NEW");
+  const [manualOrbit, setManualOrbit] = useState({ altitude_km: 550, inclination_deg: 53, raan_deg: 0, phase_deg: 0 });
   const [showContactForm, setShowContactForm] = useState(false);
   const [contactDraft, setContactDraft] = useState({ from: "GS-MUMBAI", to: "SAT-01", start: "0", end: "10", rate: "100" });
-  const [advanced, setAdvanced] = useState({ ttlSeconds: 3600, bundleSizeMb: 5, bufferGb: 10, linkRateMbps: 100 });
+  const [advanced, setAdvanced] = useState({ ttlSeconds: 3600, bundleSizeMb: 50, bufferGb: 10, linkRateMbps: 100, trafficIntervalSeconds: 60 });
 
   useEffect(() => { snapshotRef.current = snapshot; }, [snapshot]);
 
@@ -89,25 +102,31 @@ export function Dashboard() {
       if (!current || current.status !== "running") return;
       inFlight.current = true;
       try {
-        const target = Math.min(current.time_us + 5_000_000, current.horizon_us);
-        const result = await advanceSimulation(current.simulation_id, target);
+        const result = configuration.orbital_contact_generation
+          ? { simulation: await getSimulation(current.simulation_id) }
+          : await advanceSimulation(current.simulation_id, Math.min(current.time_us + 1_000_000, current.horizon_us));
         if (!stopped) {
           setSnapshot(result.simulation);
+            const selected = result.simulation.bundles.find((bundle) => bundle.bundle_id === selectedBundleId);
+            if (!selected || ["delivered", "expired", "rejected_at_source"].includes(selected.status)) {
+              const liveBundles = result.simulation.bundles.filter((bundle) => !["delivered", "expired", "rejected_at_source"].includes(bundle.status));
+              const newest = [...liveBundles].sort((a, b) => a.creation_time_us - b.creation_time_us || a.bundle_id.localeCompare(b.bundle_id)).at(-1);
+              if (newest) setSelectedBundleId(newest.bundle_id);
+            }
           await refreshMetrics(current.simulation_id);
         }
       } catch (cause) {
         if (!stopped) setError(cause instanceof Error ? cause.message : "Simulation advance failed");
       } finally { inFlight.current = false; }
-    }, 320);
+    }, 120);
     return () => { stopped = true; window.clearInterval(timer); };
-  }, [simulationId, snapshot?.status, refreshMetrics]);
+  }, [simulationId, snapshot?.status, selectedBundleId, configuration.orbital_contact_generation, refreshMetrics]);
 
   const addManualSatellite = () => {
     const id = manualNodeId.trim();
     if (!id || configuration.nodes.some((node) => node.node_id === id)) { setError("Choose a unique, non-empty satellite ID."); return; }
-    const orbitalRadius = Math.hypot(...manualPosition);
-    if (orbitalRadius <= EARTH_RADIUS_KM) { setError("Satellite coordinates must place it outside the Earth radius (6,371 km)."); return; }
-    setConfiguration((current) => ({ ...current, nodes: [...current.nodes, { node_id: id, kind: "satellite", buffer_capacity_bytes: advanced.bufferGb * 1_000_000_000, position_km: manualPosition }] }));
+    if (manualOrbit.altitude_km < 100 || manualOrbit.altitude_km > 2000) { setError("Choose an altitude from 100 to 2,000 km for this simplified LEO model."); return; }
+    setConfiguration((current) => ({ ...current, nodes: [...current.nodes, { node_id: id, kind: "satellite", buffer_capacity_bytes: advanced.bufferGb * 1_000_000_000, position_km: null, orbit: manualOrbit }] }));
     setManualNodeId(`SAT-${String(configuration.nodes.length + 1).padStart(2, "0")}`);
   };
 
@@ -120,13 +139,11 @@ export function Dashboard() {
     while (added.length < randomCount) {
       const id = `SAT-R${String(index++).padStart(3, "0")}`;
       if (existingIds.has(id)) continue;
-      const z = random() * 2 - 1;
-      const angle = random() * Math.PI * 2;
-      const radius = 6800 + random() * 1400;
-      const planar = Math.sqrt(1 - z * z);
+      const altitude = 400 + random() * 800;
       added.push({
         node_id: id, kind: "satellite", buffer_capacity_bytes: advanced.bufferGb * 1_000_000_000,
-        position_km: [radius * planar * Math.cos(angle), radius * z, radius * planar * Math.sin(angle)],
+        position_km: null,
+        orbit: { altitude_km: altitude, inclination_deg: 30 + random() * 60, raan_deg: random() * 360, phase_deg: random() * 360 },
       });
     }
     setConfiguration((current) => ({ ...current, nodes: [...current.nodes, ...added] }));
@@ -164,6 +181,7 @@ export function Dashboard() {
     const created = await createSimulation(configuration, routingPolicy, seed, horizonSeconds * 1_000_000);
     const initial = await postControl(created.simulation_id, "start");
     setSnapshot(initial); setMetrics(null); setSelectedBundleId(configuration.bundles[0]?.bundle_id ?? null);
+    setFollowPacket(true);
     if (configuration.bundles[0]) setSelectedBundleId(configuration.bundles[0].bundle_id);
   });
 
@@ -230,7 +248,7 @@ export function Dashboard() {
             </select>
             <p className="algorithm-copy">{routingDescription}</p>
             <div className="field-row"><label className="field-label" htmlFor="seed">Random seed</label><input id="seed" type="number" value={seed} onChange={(event) => setSeed(Number(event.target.value))} /></div>
-            <div className="field-row"><label className="field-label" htmlFor="horizon">Run horizon (s)</label><input id="horizon" type="number" min="1" value={horizonSeconds} onChange={(event) => setHorizonSeconds(Number(event.target.value))} /></div>
+            <div className="field-row"><label className="field-label" htmlFor="horizon">{configuration.orbital_contact_generation ? "Initial contact plan (s)" : "Run horizon (s)"}</label><input id="horizon" type="number" min="1" value={horizonSeconds} onChange={(event) => setHorizonSeconds(Number(event.target.value))} /></div>
             <button className="primary full-width" onClick={startNewSimulation} disabled={startDisabled}><Play size={15} /> Create and run</button>
             <div className="control-row">
               <IconButton title="Pause simulation" onClick={() => sendControl("pause")} active={status === "running"}><Pause size={16} /></IconButton>
@@ -248,15 +266,18 @@ export function Dashboard() {
                 <div className="node-config-row" key={node.node_id}>
                   <span className="sat-mini"><Satellite size={13} /></span>
                   <button className="node-name" onClick={() => setSelectedNodeId(node.node_id)}>{node.node_id}</button>
-                  <span className="coords">{node.position_km?.map((value) => Math.round(value)).join(", ") ?? "unplaced"} km</span>
+                  <span className="coords">{node.orbit ? `${Math.round(node.orbit.altitude_km)} km orbit` : "static point"}</span>
                   <button className="remove-button" title={`Remove ${node.node_id}`} onClick={() => removeNode(node.node_id)}>×</button>
                 </div>
               ))}
             </div>
             <div className="manual-add">
               <div className="compact-field"><label htmlFor="satellite-id">Satellite ID</label><input id="satellite-id" value={manualNodeId} onChange={(event) => setManualNodeId(event.target.value)} /></div>
-              <div className="xyz-grid">
-                {(["X", "Y", "Z"] as const).map((axis, index) => <label key={axis}>{axis} km<input type="number" value={manualPosition[index]} onChange={(event) => setManualPosition((position) => position.map((value, i) => i === index ? Number(event.target.value) : value) as [number, number, number])} /></label>)}
+              <div className="form-two orbital-fields">
+                <label>Altitude km<input type="number" min="100" max="2000" value={manualOrbit.altitude_km} onChange={(event) => setManualOrbit((orbit) => ({ ...orbit, altitude_km: Number(event.target.value) }))} /></label>
+                <label>Inclination °<input type="number" min="0" max="180" value={manualOrbit.inclination_deg} onChange={(event) => setManualOrbit((orbit) => ({ ...orbit, inclination_deg: Number(event.target.value) }))} /></label>
+                <label>RAAN °<input type="number" min="0" max="360" value={manualOrbit.raan_deg} onChange={(event) => setManualOrbit((orbit) => ({ ...orbit, raan_deg: Number(event.target.value) }))} /></label>
+                <label>Orbit phase °<input type="number" min="0" max="360" value={manualOrbit.phase_deg} onChange={(event) => setManualOrbit((orbit) => ({ ...orbit, phase_deg: Number(event.target.value) }))} /></label>
               </div>
               <button className="secondary full-width" onClick={addManualSatellite}><Plus size={14} /> Add satellite manually</button>
             </div>
@@ -274,17 +295,22 @@ export function Dashboard() {
               <label>Bundle size (MB)<input type="number" min="0.001" step="0.1" value={advanced.bundleSizeMb} onChange={(event) => setAdvanced((current) => ({ ...current, bundleSizeMb: Number(event.target.value) }))} /></label>
               <label>Buffer capacity (GB)<input type="number" min="0" step="0.5" value={advanced.bufferGb} onChange={(event) => setAdvanced((current) => ({ ...current, bufferGb: Number(event.target.value) }))} /></label>
               <label>Link data rate (Mbps)<input type="number" min="0.001" value={advanced.linkRateMbps} onChange={(event) => setAdvanced((current) => ({ ...current, linkRateMbps: Number(event.target.value) }))} /></label>
+              <label>Bundle interval (s)<input type="number" min="1" value={advanced.trafficIntervalSeconds} onChange={(event) => { const seconds = Math.max(1, Number(event.target.value)); setAdvanced((current) => ({ ...current, trafficIntervalSeconds: seconds })); if (configuration.bundle_generation_interval_us != null) setConfiguration((current) => ({ ...current, bundle_generation_interval_us: Math.round(seconds * 1_000_000) })); }} /></label>
             </div>
             <button className="secondary full-width" onClick={() => setConfiguration((current) => ({
               ...current,
               nodes: current.nodes.map((node) => ({ ...node, buffer_capacity_bytes: Math.round(advanced.bufferGb * 1_000_000_000) })),
               contacts: current.contacts.map((contact) => ({ ...contact, rate_bits_per_second: Math.round(advanced.linkRateMbps * 1_000_000) })),
               bundles: current.bundles.map((bundle) => ({ ...bundle, payload_bytes: Math.round(advanced.bundleSizeMb * 1_000_000), ttl_us: Math.round(advanced.ttlSeconds * 1_000_000) })),
+              orbital_link_rate_bits_per_second: Math.round(advanced.linkRateMbps * 1_000_000),
             }))}>Apply to current configuration</button>
           </section>
 
           <section className="panel plan-panel">
-            <div className="panel-heading"><div className="heading-icon violet"><Link2 size={16} /></div><h2>Contact plan</h2><button className="quiet-button" onClick={() => setShowContactForm((value) => !value)}><Plus size={14} /> Add</button></div>
+            <div className="panel-heading"><div className="heading-icon violet"><Link2 size={16} /></div><h2>Contact plan</h2><button className="quiet-button" onClick={() => setShowContactForm((value) => !value)}><Plus size={14} /> Add manual</button></div>
+            <label className="geometry-toggle"><input type="checkbox" checked={configuration.orbital_contact_generation ?? false} onChange={(event) => setConfiguration((current) => ({ ...current, orbital_contact_generation: event.target.checked }))} /><span>Generate links from live orbital visibility</span></label>
+            {configuration.orbital_contact_generation && <div className="geometry-settings"><label>Minimum station elevation °<input type="number" min="0" max="45" value={configuration.minimum_elevation_deg ?? 10} onChange={(event) => setConfiguration((current) => ({ ...current, minimum_elevation_deg: Number(event.target.value) }))} /></label><label>Geometry sampling (s)<input type="number" min="1" max="300" value={(configuration.contact_sample_interval_us ?? 10_000_000) / 1_000_000} onChange={(event) => setConfiguration((current) => ({ ...current, contact_sample_interval_us: Math.max(100_000, Number(event.target.value) * 1_000_000) }))} /></label></div>}
+            <label className="geometry-toggle"><input type="checkbox" checked={configuration.bundle_generation_interval_us != null} onChange={(event) => setConfiguration((current) => ({ ...current, bundle_generation_interval_us: event.target.checked ? Math.round(advanced.trafficIntervalSeconds * 1_000_000) : null }))} /><span>Keep generating bundles at the selected interval</span></label>
             <div className="contact-list">{configuration.contacts.map((contact) => <div className="contact-row" key={contact.contact_id}><span className="contact-led" /><div><b>{contact.from_node} → {contact.to_node}</b><small>{seconds(contact.start_us)}–{seconds(contact.end_us)} · {contact.rate_bits_per_second / 1_000_000} Mbps</small></div><button className="remove-button" title="Remove contact" onClick={() => setConfiguration((current) => ({ ...current, contacts: current.contacts.filter((item) => item.contact_id !== contact.contact_id) }))}>×</button></div>)}</div>
             {showContactForm && <div className="contact-form">
               <div className="form-two"><label>From<select value={contactDraft.from} onChange={(event) => setContactDraft((draft) => ({ ...draft, from: event.target.value }))}>{configuration.nodes.map((node) => <option key={node.node_id}>{node.node_id}</option>)}</select></label><label>To<select value={contactDraft.to} onChange={(event) => setContactDraft((draft) => ({ ...draft, to: event.target.value }))}>{configuration.nodes.map((node) => <option key={node.node_id}>{node.node_id}</option>)}</select></label></div>
@@ -302,13 +328,13 @@ export function Dashboard() {
           <div className="scene-frame">
             {viewMode === "globe" ? <NetworkScene snapshot={snapshot} selectedBundleId={selectedBundleId} followPacket={followPacket} onSelectNode={setSelectedNodeId} /> : <NetworkTopology snapshot={snapshot} selectedBundleId={selectedBundleId} onSelectNode={setSelectedNodeId} />}
             {viewMode === "globe" && <div className="scene-overlay scene-help"><CircleHelp size={13} /> Drag to rotate view · Scroll to zoom</div>}
-            <div className="scene-legend"><span><i className="legend-line active-line" /> Active contact</span><span><i className="legend-line planned-line" /> Scheduled contact</span><span><i className="legend-dot sat-legend" /> Satellite</span><span><i className="legend-dot ground-legend" /> Ground station</span><span><i className="legend-dot packet-legend" /> Selected bundle</span></div>
+            <div className="scene-legend"><span><i className="legend-line active-line" /> Active contact</span><span><i className="legend-line planned-line" /> Scheduled contact</span><span><i className="legend-line orbit-line" /> Orbit trace</span><span><i className="legend-dot sat-legend" /> Satellite</span><span><i className="legend-dot ground-legend" /> Ground station</span><span><i className="legend-dot packet-legend" /> Selected bundle</span></div>
             {!snapshot && <div className="scene-empty"><div className="empty-globe"><Globe2 size={32} /></div><b>Ready for a contact plan</b><span>Satellite positions and links will appear from the configured simulation state.</span><button className="primary" onClick={startNewSimulation}><Play size={15} /> Create simulation</button></div>}
             {error && <div className="error-banner"><AlertCircle size={15} />{error}<button onClick={() => setError(null)}>×</button></div>}
           </div>
           <div className="playback-bar">
             <div className="playback-actions"><IconButton title="Pause" onClick={() => sendControl("pause")} active={status === "running"}><Pause size={17} /></IconButton><IconButton title="Step one event" onClick={() => sendControl("step")}><SkipForward size={17} /></IconButton><IconButton title="Reset" onClick={() => sendControl("reset")}><RotateCcw size={16} /></IconButton></div>
-            <div className="timeline"><div className="time-label"><b>t = {snapshot ? seconds(snapshot.time_us) : "0.00 s"}</b><span>{snapshot ? `/ ${seconds(snapshot.horizon_us)}` : "No run"}</span></div><div className="timeline-track"><div className="timeline-progress" style={{ width: `${snapshot ? Math.min(100, (snapshot.time_us / snapshot.horizon_us) * 100) : 0}%` }} /><span className="timeline-thumb" style={{ left: `${snapshot ? Math.min(100, (snapshot.time_us / snapshot.horizon_us) * 100) : 0}%` }} /></div></div>
+            <div className="timeline"><div className="time-label"><b>t = {snapshot ? seconds(snapshot.time_us) : "0.00 s"}</b><span>{snapshot ? configuration.orbital_contact_generation ? `Live · contacts planned to ${seconds(snapshot.horizon_us)}` : `/ ${seconds(snapshot.horizon_us)}` : "No run"}</span></div><div className="timeline-track"><div className="timeline-progress" style={{ width: `${snapshot ? Math.min(100, (snapshot.time_us / snapshot.horizon_us) * 100) : 0}%` }} /><span className="timeline-thumb" style={{ left: `${snapshot ? Math.min(100, (snapshot.time_us / snapshot.horizon_us) * 100) : 0}%` }} /></div></div>
             <button className={`follow-button ${followPacket ? "enabled" : ""}`} onClick={() => setFollowPacket((value) => !value)} disabled={!selectedBundleId || viewMode !== "globe"} title={viewMode === "globe" ? "Keep the selected bundle centered in the 3D view" : "Packet-follow is available in the 3D globe view"}><Sparkles size={14} /> {followPacket ? "Following bundle" : "Follow bundle"}</button>
           </div>
           <div className="summary-strip"><Metric label="Delivered" value={metrics ? `${metrics.delivered_count}/${metrics.generated_count}` : "—"} tone="green" /><Metric label="Delivery ratio" value={metrics?.delivery_ratio == null ? "—" : `${(metrics.delivery_ratio * 100).toFixed(1)}%`} tone="blue" /><Metric label="Mean latency" value={metrics?.mean_delivery_latency_us == null ? "—" : seconds(metrics.mean_delivery_latency_us)} tone="cyan" /><Metric label="Contact use" value={metrics?.contact_utilization_fraction == null ? "—" : `${(metrics.contact_utilization_fraction * 100).toFixed(1)}%`} tone="purple" /></div>
@@ -320,6 +346,7 @@ export function Dashboard() {
             {selectedBundle ? <>
               <div className="bundle-id-line"><span className={`bundle-status ${selectedBundle.status}`} /> <b>{selectedBundle.bundle_id}</b><span className="status-label">{selectedBundle.status.replaceAll("_", " ")}</span></div>
               <InfoRow label="Source" value={selectedBundle.source} /><InfoRow label="Destination" value={selectedBundle.destination} /><InfoRow label="Payload" value={bytes(selectedBundle.payload_bytes)} /><InfoRow label="Created" value={seconds(selectedBundle.creation_time_us)} /><InfoRow label="Expires" value={seconds(selectedBundle.expiry_time_us)} /><InfoRow label="Current holder" value={selectedBundle.holder ?? (selectedBundle.status === "delivered" ? "At destination" : selectedBundle.status === "transmitting" || selectedBundle.status === "in_transit" ? "In transit" : "No holder")} />
+              {snapshot && selectedBundle.status === "queued" && selectedBundle.holder && selectedBundle.holder !== selectedBundle.destination && <div className="bundle-wait-note"><span className="wait-pulse" /><div><b>Stored at {selectedBundle.holder}</b><small>{snapshot.status === "completed" ? "No feasible forwarding opportunity was found before this run horizon." : "Waiting for a future contact. The bundle stays here until the engine starts a valid next transfer."}</small></div></div>}
               <div className="path-heading">Forwarding history <small>{selectedBundle.forwarding_history.length} hops</small></div>
               {selectedBundle.forwarding_history.length ? <div className="path-list">{selectedBundle.forwarding_history.map((hop, index) => <div className="path-step" key={`${hop.contact_id}-${index}`}><span className="path-dot" /><div><b>{hop.from_node} → {hop.to_node}</b><small>{hop.contact_id} · {seconds(hop.receiver_acceptance_us)}</small></div></div>)}</div> : <p className="empty-copy">Forwarding hops appear after the engine records successful contact transfers.</p>}
             </> : <p className="empty-copy">Select a configured bundle to inspect its state and journey.</p>}
@@ -338,13 +365,13 @@ export function Dashboard() {
           <section className="panel node-info-panel">
             <div className="panel-heading"><div className="heading-icon blue"><Satellite size={15} /></div><h2>Selected node</h2><ChevronDown size={15} className="muted-icon" /></div>
             {activeNode ? <>
-              <InfoRow label="ID" value={activeNode.node_id} /><InfoRow label="Type" value={activeNode.kind.replaceAll("_", " ")} /><InfoRow label="Position" value={activeNode.position_km ? `(${activeNode.position_km.map((value) => value.toFixed(0)).join(", ")}) km` : "Not specified"} /><InfoRow label="Buffer" value={`${bytes(activeNode.buffer_occupancy_bytes)} / ${bytes(activeNode.buffer_capacity_bytes)}`} />
+              <InfoRow label="ID" value={activeNode.node_id} /><InfoRow label="Type" value={activeNode.kind.replaceAll("_", " ")} /><InfoRow label="Position" value={activeNode.position_km ? `(${activeNode.position_km.map((value) => value.toFixed(0)).join(", ")}) km · ECEF` : "Not specified"} />{activeNode.orbit && <><InfoRow label="Altitude / inclination" value={`${activeNode.orbit.altitude_km.toFixed(0)} km / ${activeNode.orbit.inclination_deg.toFixed(1)}°`} /><InfoRow label="Velocity" value={activeNode.velocity_km_s ? `${Math.hypot(...activeNode.velocity_km_s).toFixed(2)} km/s` : "—"} /></>}<InfoRow label="Buffer" value={`${bytes(activeNode.buffer_occupancy_bytes)} / ${bytes(activeNode.buffer_capacity_bytes)}`} />
             </> : <>
               <p className="empty-copy">Click a satellite or station in the globe to inspect it.</p>
-              <div className="node-picker">{(snapshot?.nodes ?? configuration.nodes.map((node) => ({ ...node, buffer_occupancy_bytes: 0 }))).slice(0, 5).map((node) => <button key={node.node_id} onClick={() => setSelectedNodeId(node.node_id)}>{node.node_id}<span>{node.kind === "satellite" ? "SAT" : "GS"}</span></button>)}</div>
+              <div className="node-picker">{(snapshot?.nodes ?? configuration.nodes.map((node) => ({ ...node, buffer_occupancy_bytes: 0, velocity_km_s: null }))).slice(0, 5).map((node) => <button key={node.node_id} onClick={() => setSelectedNodeId(node.node_id)}>{node.node_id}<span>{node.kind === "satellite" ? "SAT" : "GS"}</span></button>)}</div>
             </>}
           </section>
-          <div className="data-note"><i /> Displayed links, transfers, and paths come from the simulation engine. Satellite placement stays fixed until a motion model is added.</div>
+          <div className="data-note"><i /> Positions, line-of-sight windows, transfers, and paths come from the engine. Circular-orbit geometry is simplified and is not an operational prediction.</div>
         </aside>
       </div>
     </main>

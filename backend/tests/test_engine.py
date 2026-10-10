@@ -273,6 +273,23 @@ def test_identical_scenarios_replay_identically():
     assert first == second
 
 
+def test_recurring_bundle_stream_generates_deterministic_bundle_ids():
+    nodes = (Node("A", NodeKind.GROUND_STATION, 10_000), Node("B", NodeKind.GROUND_STATION, 10_000))
+    engine = SimulationEngine(nodes=nodes, contacts=())
+    engine.add_recurring_bundle(
+        BundleRequest("TRAFFIC", "A", "B", 100, 0, 100_000_000),
+        interval_us=10,
+    )
+
+    snapshot = engine.run_until(25)
+    assert [bundle.bundle_id for bundle in snapshot.bundles] == [
+        "TRAFFIC", "TRAFFIC-AUTO-000002", "TRAFFIC-AUTO-000003",
+    ]
+    assert [event.bundle_id for event in snapshot.events if event.kind == "bundle_generated"] == [
+        "TRAFFIC", "TRAFFIC-AUTO-000002", "TRAFFIC-AUTO-000003",
+    ]
+
+
 def test_routing_policy_is_replaceable_without_changing_event_execution():
     nodes = (
         Node("S", NodeKind.GROUND_STATION, 2_000),

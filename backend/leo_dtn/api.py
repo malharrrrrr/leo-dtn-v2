@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+from contextlib import asynccontextmanager
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Query, Response
@@ -38,7 +40,16 @@ from .service import InvalidRunTransition, SimulationManager, SimulationSession,
 
 
 def create_app(manager: SimulationManager | None = None) -> FastAPI:
-    app = FastAPI(title="LEO-DTN Simulation API", version="0.1.0")
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        yield
+        tasks = tuple(app.state.playback_tasks.values())
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+    app = FastAPI(title="LEO-DTN Simulation API", version="0.1.0", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
@@ -47,6 +58,45 @@ def create_app(manager: SimulationManager | None = None) -> FastAPI:
         allow_headers=["Content-Type"],
     )
     app.state.simulations = manager or SimulationManager()
+    app.state.playback_tasks = {}
+
+    def ensure_orbital_playback(session: SimulationSession) -> None:
+        if not session.configuration.orbital_contact_generation:
+            return
+        existing = app.state.playback_tasks.get(session.simulation_id)
+        if existing is not None and not existing.done():
+            return
+
+        async def playback() -> None:
+            try:
+                while True:
+                    await asyncio.sleep(0.12)
+                    def advance_one_tick() -> bool:
+                        with session.lock:
+                            if session.status in ("ready", "completed", "failed"):
+                                return False
+                            if session.status != "running":
+                                return True
+                            session.advance(
+                                target_time_us=session.engine.time_us + 1_000_000,
+                                max_events=10_000,
+                            )
+                            return True
+
+                    if not await asyncio.to_thread(advance_one_tick):
+                        return
+            except InvalidRunTransition:
+                return
+            except ValueError:
+                with session.lock:
+                    session.status = "failed"
+                return
+            finally:
+                if app.state.playback_tasks.get(session.simulation_id) is asyncio.current_task():
+                    app.state.playback_tasks.pop(session.simulation_id, None)
+
+        task = asyncio.create_task(playback(), name=f"orbital-playback-{session.simulation_id}")
+        app.state.playback_tasks[session.simulation_id] = task
 
     def get_session(simulation_id: str) -> SimulationSession:
         try:
@@ -104,9 +154,10 @@ def create_app(manager: SimulationManager | None = None) -> FastAPI:
         return _snapshot(get_session(simulation_id))
 
     @app.post("/simulations/{simulation_id}/start", response_model=SimulationSnapshotResponse)
-    def start_simulation(simulation_id: str):
+    async def start_simulation(simulation_id: str):
         session = get_session(simulation_id)
         translate_transition(session.start)
+        ensure_orbital_playback(session)
         return _snapshot(session)
 
     @app.post("/simulations/{simulation_id}/pause", response_model=SimulationSnapshotResponse)
@@ -116,9 +167,10 @@ def create_app(manager: SimulationManager | None = None) -> FastAPI:
         return _snapshot(session)
 
     @app.post("/simulations/{simulation_id}/resume", response_model=SimulationSnapshotResponse)
-    def resume_simulation(simulation_id: str):
+    async def resume_simulation(simulation_id: str):
         session = get_session(simulation_id)
         translate_transition(session.resume)
+        ensure_orbital_playback(session)
         return _snapshot(session)
 
     @app.post("/simulations/{simulation_id}/step", response_model=SimulationSnapshotResponse)
@@ -250,8 +302,8 @@ def _status(session: SimulationSession, response_type=SimulationStatusResponse, 
             random_seed=session.random_seed,
             routing_policy=session.routing_policy_name,
             node_count=len(session.configuration.nodes),
-            contact_count=len(session.configuration.contacts),
-            bundle_count=len(session.configuration.bundles),
+            contact_count=len(session.engine.snapshot().contacts),
+            bundle_count=len(session.engine.snapshot().bundles),
             **extra,
         )
 
@@ -292,7 +344,9 @@ def _snapshot_locked(session: SimulationSession) -> SimulationSnapshotResponse:
             node_id=item.node.node_id, kind=item.node.kind,
             buffer_capacity_bytes=item.node.buffer_capacity_bytes,
             buffer_occupancy_bytes=item.buffer_occupancy_bytes,
-            position_km=item.node.position_km,
+            position_km=item.position_km,
+            velocity_km_s=item.velocity_km_s,
+            orbit=item.node.orbit,
         ) for item in snapshot.nodes),
         contacts=tuple(contacts),
         bundles=tuple(BundleResponse(
@@ -305,6 +359,8 @@ def _snapshot_locked(session: SimulationSession) -> SimulationSnapshotResponse:
                 "transmission_start_us": record.transmission_start_us,
                 "serialization_complete_us": record.serialization_complete_us,
                 "receiver_acceptance_us": record.receiver_acceptance_us,
+                "from_position_km": record.from_position_km,
+                "to_position_km": record.to_position_km,
             } for record in item.forwarding_history),
         ) for item in snapshot.bundles),
         active_transmissions=tuple(ActiveTransmissionResponse(

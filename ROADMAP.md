@@ -1,14 +1,14 @@
 # Implementation roadmap
 
-No deadlines are assigned. Each milestone has an independently checkable exit condition. Later work depends on earlier semantics and tests; advanced orbital fidelity is optional unless the academic evaluation requires it.
+No deadlines are assigned. Each milestone has an independently checkable exit condition. Circular orbital motion and geometry-based contact loss are core project behavior; high-fidelity orbital and RF modelling remain out of scope.
 
-## 1. Specification and architecture (current)
+## 1. Specification and architecture (complete)
 
 **Deliverables:** `PROJECT.md`, `AGENTS.md`, architecture, model, experiments, routing/API contracts, and this roadmap.
 
 **Acceptance:** documents agree on units, event ordering, transfer/expiry behavior, boundaries, first scenario, and metric definitions. No application code is required in this milestone.
 
-## 2. Minimal deterministic engine
+## 2. Minimal deterministic engine (complete)
 
 **Depends on:** milestone 1.
 
@@ -16,7 +16,7 @@ No deadlines are assigned. Each milestone has an independently checkable exit co
 
 **Acceptance:** pytest proves ordered events, unavailable links cannot carry data, relay retention, correct serialization/arrival timestamps, successful delivery only after valid hops, and identical replay. Tests run without FastAPI or frontend.
 
-## 3. Bundle lifecycle, contacts, buffers, and routing
+## 3. Bundle lifecycle, contacts, buffers, and routing (complete)
 
 **Depends on:** milestone 2.
 
@@ -24,7 +24,7 @@ No deadlines are assigned. Each milestone has an independently checkable exit co
 
 **Acceptance:** focused tests cover each boundary and simultaneous expiry/delivery. Failed or infeasible contacts cannot create a delivery; finite buffers are enforced; routing can be replaced without changing engine event semantics.
 
-## 4. Metrics and reproducible experiments
+## 4. Metrics and reproducible experiments (engine support complete; dashboard analysis pending)
 
 **Depends on:** milestones 2–3.
 
@@ -32,7 +32,7 @@ No deadlines are assigned. Each milestone has an independently checkable exit co
 
 **Acceptance:** hand-calculated fixtures validate denominators and cutoff cases; repeated seeded runs produce identical manifests/results; comparisons vary one declared factor at a time or document factorial design.
 
-## 5. FastAPI integration and controls
+## 5. FastAPI integration and controls (initial integration complete)
 
 **Depends on:** stable engine API from milestones 2–4.
 
@@ -40,25 +40,25 @@ No deadlines are assigned. Each milestone has an independently checkable exit co
 
 **Acceptance:** API/engine integration tests verify command validation, state transitions, response snapshots, event cursors, exports, and that API code contains no forwarding/routing semantics. The API tests run against a local Uvicorn subprocess to exercise the real HTTP boundary.
 
-## 6. Frontend dashboard and visualization
+## 6. Frontend dashboard and visualization (first pass needs functional/visual repair)
 
 **Depends on:** API response contract and stable snapshots.
 
 **Deliverables:** implemented first dashboard slice with three-region dark layout; routing/config controls; add/remove and explicit/seeded-random satellite placement; 3D globe and topology views; playback/time controls; selected bundle/node/network panels; metrics and empty/loading/error states. A geographic map is deferred because coordinates are scene-frame XYZ, not latitude/longitude. In 3D, Earth remains stationary unless the user rotates the view; packet-follow adjusts the camera target from engine state.
 
-**Acceptance:** frontend uses API state only for simulation behavior, handles changing satellite counts without fixed-slot assumptions, seeded placement reproduces the same realized configuration, and topology edits apply before run creation. Earth does not spin automatically; manual rotation works; packet-follow keeps a selected bundle in view and only interpolates over a real active transmission. Link/bundle history remains accurate, simulation lifecycle states are handled, and layout is usable at ordinary laptop widths. Type-check, lint, and production build pass. The geographic map and automated visual/component tests remain future work.
+**Acceptance:** frontend uses engine snapshots for orbital state, contact activity, and bundle behavior; handles changing satellite counts without fixed-slot assumptions; seeded placement produces identical elements; and topology edits apply before run creation. Earth remains fixed; manual rotation works; satellites visibly move; geometry-derived links appear only while in line of sight and disappear when visibility ends; packet-follow keeps a selected bundle in view and marker movement follows actual active transmission state. Link/bundle history remains accurate, simulation lifecycle states are handled, and layout is usable at ordinary laptop widths. Type-check, lint, production build, and interaction-level frontend tests pass.
 
-## 7. LEO-specific contact generation and scenario realism
+## 7. Circular orbit, geometry-derived contacts, and continuous playback (core behavior implemented; validation in progress)
 
-**Depends on:** validated contact and node interfaces; justified by evaluation needs.
+**Depends on:** validated contact and node interfaces.
 
-**Deliverables:** documented orbital/contact assumptions and a contact-plan generator, with deterministic inputs and independent validation fixtures. Add orbital position fields only when a selected model supports them.
+**Deliverables:** implemented circular Kepler position propagation, fixed Earth-frame ground stations, engine-returned ECEF state/velocity, and reproducible line-of-sight contact generation with a rolling lookahead for continuous orbital playback. The dashboard can generate recurring bundle traffic at a configured simulation-time interval.
 
-**Acceptance:** generated contact plans obey declared geometry/visibility assumptions and are reproducible. Do not claim realistic fidelity beyond the validated model. Orbital propagation and 3D rendering library choices remain open until requirements are evaluated.
+**Acceptance:** positions change deterministically with simulated time; generated contacts obey the declared spherical-Earth and minimum-elevation model, disappear at computed window end, the rolling plan continues beyond its initial horizon, and identical inputs replay identically. Recurring bundle IDs and generation times are deterministic. State clearly that this is simplified orbital propagation, not a high-fidelity operational model. Validate long-run cost and browser playback interactively before calling the milestone complete.
 
 ## 8. End-to-end validation and academic evaluation
 
-**Depends on:** selected final feature scope from milestones 1–7.
+**Depends on:** milestones 1–7.
 
 **Deliverables:** end-to-end scenarios, reproducible experiment outputs, limitations, architecture/model documentation, and report-ready plots/tables.
 
@@ -66,4 +66,4 @@ No deadlines are assigned. Each milestone has an independently checkable exit co
 
 ## Deferred work
 
-Fragmentation/resumption, BP custody and acknowledgements, multiple channels, dynamic orbital propagation, WebSockets, database persistence, authentication, distributed execution, and operational satellite fidelity are deferred. Revisit only with a concrete requirement and documented semantics.
+Fragmentation/resumption, BP custody and acknowledgements, multiple channels, orbital perturbations, high-fidelity ephemerides, RF link budgets, WebSockets, database persistence, authentication, distributed execution, and operational satellite fidelity are deferred. Revisit only with a concrete requirement and documented semantics.

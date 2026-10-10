@@ -131,3 +131,59 @@ def test_advance_rejects_invalid_target_and_requires_running_state(api_client):
     assert request(api_client, "POST", f"/simulations/{simulation_id}/advance", json_body={
         "target_time_us": 100_001,
     }).status_code == 422
+
+
+def test_orbital_configuration_returns_engine_state_and_generated_contacts(api_client):
+    created = request(api_client, "POST", "/simulations", json_body={
+        "configuration": {
+            "nodes": [
+                {"node_id": "GS", "kind": "ground_station", "buffer_capacity_bytes": 1000, "position_km": [6371, 0, 0]},
+                {"node_id": "SAT", "kind": "satellite", "buffer_capacity_bytes": 1000, "orbit": {
+                    "altitude_km": 500, "inclination_deg": 0, "raan_deg": 0, "phase_deg": 0,
+                }},
+            ],
+            "contacts": [], "bundles": [], "interruptions": [],
+            "orbital_contact_generation": True,
+            "contact_sample_interval_us": 1_000_000,
+            "minimum_elevation_deg": 10,
+            "orbital_link_rate_bits_per_second": 1_000_000,
+        },
+        "random_seed": 8,
+        "horizon_us": 5_000_000,
+    })
+    assert created.status_code == 201, created.text
+    simulation_id = created.json()["simulation_id"]
+    snapshot = request(api_client, "GET", f"/simulations/{simulation_id}/snapshot").json()
+    satellite = next(node for node in snapshot["nodes"] if node["node_id"] == "SAT")
+    assert satellite["position_km"] is not None
+    assert satellite["velocity_km_s"] is not None
+    assert len(snapshot["contacts"]) == 2
+
+
+def test_orbital_run_advances_without_dashboard_polling_and_pause_stops_it(api_client):
+    created = request(api_client, "POST", "/simulations", json_body={
+        "configuration": {
+            "nodes": [
+                {"node_id": "GS", "kind": "ground_station", "buffer_capacity_bytes": 1000, "position_km": [6371, 0, 0]},
+                {"node_id": "SAT", "kind": "satellite", "buffer_capacity_bytes": 1000, "orbit": {
+                    "altitude_km": 500, "inclination_deg": 0, "raan_deg": 0, "phase_deg": 0,
+                }},
+            ],
+            "contacts": [], "bundles": [], "interruptions": [],
+            "orbital_contact_generation": True,
+            "contact_sample_interval_us": 1_000_000,
+        },
+        "random_seed": 1,
+        "horizon_us": 5_000_000,
+    })
+    simulation_id = created.json()["simulation_id"]
+    assert request(api_client, "POST", f"/simulations/{simulation_id}/start").status_code == 200
+    time.sleep(0.35)
+    advanced = request(api_client, "GET", f"/simulations/{simulation_id}/snapshot").json()
+    assert advanced["time_us"] > 0
+
+    paused = request(api_client, "POST", f"/simulations/{simulation_id}/pause").json()
+    paused_time = paused["time_us"]
+    time.sleep(0.25)
+    after_wait = request(api_client, "GET", f"/simulations/{simulation_id}/snapshot").json()
+    assert after_wait["time_us"] == paused_time

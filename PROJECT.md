@@ -25,7 +25,7 @@ The research question is: **How do contact availability, buffer capacity, and ro
 
 ## Scope
 
-The first implementation uses precomputed contact plans, a small node model, finite byte-capacity buffers, complete-bundle transmissions, deterministic event ordering, and a baseline plus a contact-aware routing policy. It is designed for a single laptop and small academic experiments. Orbital visualization and contact generation can be added later when their assumptions and validation are explicit.
+The simulation uses a small node model, finite byte-capacity buffers, complete-bundle transmissions, deterministic event ordering, and a baseline plus contact-aware routing. Satellite motion uses a documented two-body circular-orbit approximation in an Earth-fixed scene frame; contacts can be generated from line-of-sight and minimum ground-station elevation over a finite run horizon. These orbital assumptions are essential to showing why LEO links appear and disappear, but they are not high-fidelity ephemerides or operational predictions.
 
 ## Technology and constraints
 
@@ -41,7 +41,7 @@ The first implementation uses precomputed contact plans, a small node model, fin
 
 - Real satellite operations, flight software, or validated operational performance.
 - Claiming complete Bundle Protocol (BP) compliance or custody-transfer behavior.
-- High-fidelity orbital propagation in the first engine milestone.
+- High-fidelity orbital propagation, perturbations, attitude, antenna patterns, atmospheric effects, and operational satellite performance.
 - Partial bundle fragmentation/resumption, authentication, persistent multi-user state, or distributed simulation unless separately justified.
 - Decorative visualization that implies contacts or forwarding absent from engine state.
 

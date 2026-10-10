@@ -21,11 +21,22 @@ class BundleStatus(str, Enum):
 
 
 @dataclass(frozen=True, slots=True)
+class CircularOrbit:
+    """Two-body circular orbit inputs in an Earth-centered inertial frame."""
+
+    altitude_km: float
+    inclination_deg: float
+    raan_deg: float
+    phase_deg: float
+
+
+@dataclass(frozen=True, slots=True)
 class Node:
     node_id: str
     kind: NodeKind
     buffer_capacity_bytes: int
     position_km: tuple[float, float, float] | None = None
+    orbit: CircularOrbit | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,6 +74,8 @@ class ForwardingRecord:
     transmission_start_us: int
     serialization_complete_us: int
     receiver_acceptance_us: int
+    from_position_km: tuple[float, float, float] | None = None
+    to_position_km: tuple[float, float, float] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -93,6 +106,8 @@ class EventRecord:
 class NodeSnapshot:
     node: Node
     buffer_occupancy_bytes: int
+    position_km: tuple[float, float, float] | None = None
+    velocity_km_s: tuple[float, float, float] | None = None
 
 
 @dataclass(frozen=True, slots=True)

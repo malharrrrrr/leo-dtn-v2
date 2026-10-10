@@ -44,6 +44,7 @@ def run_experiment(
     nodes: tuple[Node, ...],
     contacts: tuple[Contact, ...],
     bundles: tuple[BundleRequest, ...],
+    bundle_generation_interval_us: int | None = None,
     interruptions: tuple[ContactInterruption, ...] = (),
     routing_policy: RoutingPolicy | None = None,
 ) -> ExperimentResult:
@@ -54,6 +55,12 @@ def run_experiment(
         raise ValueError("random seed must be an integer")
     if not isinstance(horizon_us, int) or isinstance(horizon_us, bool) or horizon_us < 0:
         raise ValueError("horizon must be a nonnegative integer number of microseconds")
+    if bundle_generation_interval_us is not None and (
+        not isinstance(bundle_generation_interval_us, int)
+        or isinstance(bundle_generation_interval_us, bool)
+        or bundle_generation_interval_us <= 0
+    ):
+        raise ValueError("bundle generation interval must be a positive integer")
 
     normalized_nodes = tuple(sorted(nodes, key=lambda item: item.node_id))
     normalized_contacts = tuple(
@@ -70,6 +77,7 @@ def run_experiment(
         "nodes": [_jsonable(node) for node in normalized_nodes],
         "contacts": [_jsonable(contact) for contact in normalized_contacts],
         "bundles": [_jsonable(bundle) for bundle in normalized_bundles],
+        "bundle_generation_interval_us": bundle_generation_interval_us,
         "interruptions": [_jsonable(interruption) for interruption in normalized_interruptions],
         "horizon_us": horizon_us,
         "routing_policy": selected_routing_policy.name,
@@ -84,7 +92,10 @@ def run_experiment(
         routing_policy=selected_routing_policy,
     )
     for bundle in normalized_bundles:
-        engine.add_bundle(bundle)
+        if bundle_generation_interval_us is None:
+            engine.add_bundle(bundle)
+        else:
+            engine.add_recurring_bundle(bundle, interval_us=bundle_generation_interval_us)
     snapshot = engine.run_until(horizon_us)
     metrics = calculate_metrics(snapshot, horizon_us=horizon_us)
     manifest = RunManifest(
@@ -148,60 +159,46 @@ def export_scenario_csv(result: ExperimentResult) -> str:
     configuration = json.loads(result.manifest.normalized_configuration_json)
     output = io.StringIO(newline="")
     writer = csv.writer(output, lineterminator="\n")
-    writer.writerow(
-        (
-            *_csv_run_metadata_header(),
-            "record_type",
-            "id",
-            "node_kind",
-            "from_node",
-            "to_node",
-            "buffer_capacity_bytes",
-            "position_x_km",
-            "position_y_km",
-            "position_z_km",
-            "start_us",
-            "end_us",
-            "rate_bits_per_second",
-            "propagation_delay_us",
-            "source",
-            "destination",
-            "payload_bytes",
-            "creation_time_us",
-            "ttl_us",
-            "interruption_time_us",
-        )
+    fields = (
+        *_csv_run_metadata_header(), "record_type", "id", "node_kind", "from_node", "to_node",
+        "buffer_capacity_bytes", "position_x_km", "position_y_km", "position_z_km",
+        "orbit_altitude_km", "orbit_inclination_deg", "orbit_raan_deg", "orbit_phase_deg",
+        "start_us", "end_us", "rate_bits_per_second", "propagation_delay_us", "source",
+        "destination", "payload_bytes", "creation_time_us", "ttl_us", "interruption_time_us",
+        "contact_sample_interval_us", "minimum_elevation_deg", "orbital_link_rate_bits_per_second",
+        "bundle_generation_interval_us",
     )
+    writer.writerow(fields)
+
+    def write_row(record_type: str, record_id: str, **values: Any) -> None:
+        row = dict(zip(_csv_run_metadata_header(), _csv_run_metadata_values(result.manifest)))
+        row.update(record_type=record_type, id=record_id, **values)
+        writer.writerow([row.get(field, "") for field in fields])
+
     for node in configuration["nodes"]:
         position = node["position_km"] or ("", "", "")
-        writer.writerow(
-            (
-                *_csv_run_metadata_values(result.manifest),
-                "node",
-                node["node_id"],
-                node["kind"],
-                "",
-                "",
-                node["buffer_capacity_bytes"],
-                *position,
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-            )
-        )
+        orbit = node.get("orbit") or {}
+        write_row("node", node["node_id"], node_kind=node["kind"], buffer_capacity_bytes=node["buffer_capacity_bytes"],
+                  position_x_km=position[0], position_y_km=position[1], position_z_km=position[2],
+                  orbit_altitude_km=orbit.get("altitude_km", ""), orbit_inclination_deg=orbit.get("inclination_deg", ""),
+                  orbit_raan_deg=orbit.get("raan_deg", ""), orbit_phase_deg=orbit.get("phase_deg", ""))
     for contact in configuration["contacts"]:
-        writer.writerow((*_csv_run_metadata_values(result.manifest), "contact", contact["contact_id"], "", contact["from_node"], contact["to_node"], "", "", "", "", contact["start_us"], contact["end_us"], contact["rate_bits_per_second"], contact["propagation_delay_us"], "", "", "", "", "", ""))
+        write_row("contact", contact["contact_id"], from_node=contact["from_node"], to_node=contact["to_node"],
+                  start_us=contact["start_us"], end_us=contact["end_us"], rate_bits_per_second=contact["rate_bits_per_second"],
+                  propagation_delay_us=contact["propagation_delay_us"])
     for bundle in configuration["bundles"]:
-        writer.writerow((*_csv_run_metadata_values(result.manifest), "bundle", bundle["bundle_id"], "", "", "", "", "", "", "", "", "", "", "", bundle["source"], bundle["destination"], bundle["payload_bytes"], bundle["creation_time_us"], bundle["ttl_us"], ""))
+        write_row("bundle", bundle["bundle_id"], source=bundle["source"], destination=bundle["destination"],
+                  payload_bytes=bundle["payload_bytes"], creation_time_us=bundle["creation_time_us"], ttl_us=bundle["ttl_us"])
     for interruption in configuration["interruptions"]:
-        writer.writerow((*_csv_run_metadata_values(result.manifest), "interruption", interruption["contact_id"], "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", interruption["time_us"]))
+        write_row("interruption", interruption["contact_id"], interruption_time_us=interruption["time_us"])
+    if configuration.get("orbital_contact_generation"):
+        write_row("settings", "orbital-contact-generation",
+                  contact_sample_interval_us=configuration.get("contact_sample_interval_us", ""),
+                  minimum_elevation_deg=configuration.get("minimum_elevation_deg", ""),
+                  orbital_link_rate_bits_per_second=configuration.get("orbital_link_rate_bits_per_second", ""))
+    if configuration.get("bundle_generation_interval_us"):
+        write_row("settings", "recurring-bundle-generation",
+                  bundle_generation_interval_us=configuration["bundle_generation_interval_us"])
     return output.getvalue()
 
 
@@ -247,7 +244,7 @@ def _jsonable(value: Any) -> Any:
 
 
 def _csv_run_metadata_header() -> tuple[str, ...]:
-    return ("scenario_id", "random_seed", "routing_policy", "horizon_us", "run_status")
+    return ("scenario_id", "random_seed", "routing_policy", "horizon_us", "run_status", "bundle_generation_interval_us")
 
 
 def _csv_run_metadata_values(manifest: RunManifest) -> tuple[str | int, ...]:
@@ -257,4 +254,5 @@ def _csv_run_metadata_values(manifest: RunManifest) -> tuple[str | int, ...]:
         manifest.routing_policy,
         manifest.horizon_us,
         manifest.run_status,
+        json.loads(manifest.normalized_configuration_json).get("bundle_generation_interval_us") or "",
     )

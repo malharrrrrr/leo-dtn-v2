@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from .model import BundleStatus, NodeKind
+from .model import BundleStatus, CircularOrbit, NodeKind
 
 
 class APIModel(BaseModel):
@@ -18,6 +18,18 @@ class NodeInput(APIModel):
     kind: NodeKind
     buffer_capacity_bytes: int = Field(ge=0)
     position_km: tuple[float, float, float] | None = None
+    orbit: CircularOrbit | None = None
+
+    @model_validator(mode="after")
+    def validate_orbit(self) -> NodeInput:
+        if self.orbit is not None:
+            if self.kind != NodeKind.SATELLITE:
+                raise ValueError("only satellites may have orbital elements")
+            if not 100 <= self.orbit.altitude_km <= 2_000:
+                raise ValueError("circular orbit altitude must be between 100 and 2,000 km")
+            if not 0 <= self.orbit.inclination_deg <= 180:
+                raise ValueError("inclination must be between 0 and 180 degrees")
+        return self
 
 
 class ContactInput(APIModel):
@@ -54,7 +66,12 @@ class SimulationConfigurationInput(APIModel):
     nodes: tuple[NodeInput, ...] = Field(min_length=1)
     contacts: tuple[ContactInput, ...] = ()
     bundles: tuple[BundleInput, ...] = ()
+    bundle_generation_interval_us: int | None = Field(default=None, gt=0)
     interruptions: tuple[ContactInterruptionInput, ...] = ()
+    orbital_contact_generation: bool = False
+    contact_sample_interval_us: int = Field(default=10_000_000, ge=100_000, le=300_000_000)
+    minimum_elevation_deg: float = Field(default=10.0, ge=0.0, le=45.0)
+    orbital_link_rate_bits_per_second: int = Field(default=100_000_000, gt=0)
 
 
 RoutingPolicyName = Literal["contact_aware_earliest_arrival", "static_minimum_hop"]
@@ -98,6 +115,8 @@ class NodeResponse(APIModel):
     buffer_capacity_bytes: int
     buffer_occupancy_bytes: int
     position_km: tuple[float, float, float] | None
+    velocity_km_s: tuple[float, float, float] | None = None
+    orbit: CircularOrbit | None = None
 
 
 class ContactResponse(APIModel):
@@ -118,6 +137,8 @@ class ForwardingResponse(APIModel):
     transmission_start_us: int
     serialization_complete_us: int
     receiver_acceptance_us: int
+    from_position_km: tuple[float, float, float] | None = None
+    to_position_km: tuple[float, float, float] | None = None
 
 
 class BundleResponse(APIModel):

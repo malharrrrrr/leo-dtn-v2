@@ -31,9 +31,10 @@ LEO-DTN is an academic simulator and visualization platform for store-carry-forw
 - Tests must exercise the engine without requiring FastAPI or the frontend where the engine is under test.
 - Run every Python command through the project virtual environment: `backend/.venv/Scripts/python.exe` on Windows or `backend/.venv/bin/python` on Unix. Do not fall back to the system Python after the venv exists.
 - Update the relevant specification and `ROADMAP.md` when scope, semantics, API contracts, or acceptance criteria change.
+- Keep `HANDOFF.md` current after substantial work: update checkout state, verified commands, known issues, and the next useful task for an incoming agent.
 - Keep changes focused. Avoid placeholder modules, speculative abstractions, unrelated cleanup, and dependencies without a demonstrated need.
 - Do not install dependencies or initialize application scaffolding without a project task that calls for implementation.
 
-## Initial implementation order
+## Implementation order
 
-Follow `ROADMAP.md`. The first code milestone is a small deterministic engine vertical slice, not a dashboard or orbital propagator. Its scenario and expected events are specified in `docs/simulation-model.md`.
+Follow `ROADMAP.md` and keep its milestone status current. Circular satellite motion and geometry-derived link windows are core requirements for the dashboard: use the documented simplified two-body model and spherical Earth, and do not present static placements as moving LEO satellites. Do not claim high-fidelity orbital or RF behavior.

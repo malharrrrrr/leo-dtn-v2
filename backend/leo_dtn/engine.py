@@ -22,6 +22,7 @@ from .model import (
     NodeSnapshot,
     SimulationSnapshot,
 )
+from .orbit import position_and_velocity_ecef
 from .routing import ContactAwareEarliestArrival, RoutingPolicy, serialization_duration_us
 
 
@@ -58,6 +59,14 @@ class _Bundle:
     attempt: int = 0
 
 
+@dataclass(slots=True)
+class _BundleStream:
+    template: BundleRequest
+    interval_us: int
+    stream_id: str
+    next_index: int = 2
+
+
 class SimulationEngine:
     """Owns all mutable state for one deterministic simulation run."""
 
@@ -80,6 +89,7 @@ class SimulationEngine:
         self._occupancy = {node_id: 0 for node_id in self._nodes}
         self._bundles: dict[str, _Bundle] = {}
         self._requests: dict[str, BundleRequest] = {}
+        self._bundle_streams: dict[str, _BundleStream] = {}
         self._active_by_contact: dict[str, str] = {}
         self._active_transmissions: dict[str, ActiveTransmissionSnapshot] = {}
         self._contact_cutoffs: dict[str, int] = {}
@@ -147,6 +157,12 @@ class SimulationEngine:
                 )
             ):
                 raise ValueError(f"node {node.node_id} position must contain three coordinates")
+            if node.orbit is not None:
+                orbit_values = (node.orbit.altitude_km, node.orbit.inclination_deg, node.orbit.raan_deg, node.orbit.phase_deg)
+                if node.kind.value != "satellite" or any(not math.isfinite(value) for value in orbit_values):
+                    raise ValueError(f"node {node.node_id} has invalid orbital elements")
+                if not 100 <= node.orbit.altitude_km <= 2_000 or not 0 <= node.orbit.inclination_deg <= 180:
+                    raise ValueError(f"node {node.node_id} orbit is outside the supported circular LEO model")
             by_id[node.node_id] = node
         if not by_id:
             raise ValueError("at least one node is required")
@@ -232,6 +248,15 @@ class SimulationEngine:
         # Keep the immutable request separately until its generation event.
         self._requests[request.bundle_id] = request
 
+    def add_recurring_bundle(self, request: BundleRequest, *, interval_us: int) -> None:
+        """Schedule a repeatable traffic source using one configured bundle as template."""
+        if not isinstance(interval_us, int) or isinstance(interval_us, bool) or interval_us <= 0:
+            raise ValueError("bundle generation interval must be a positive integer")
+        self.add_bundle(request)
+        self._bundle_streams[request.bundle_id] = _BundleStream(
+            request, interval_us, request.bundle_id
+        )
+
     def _schedule(
         self,
         time_us: int,
@@ -291,6 +316,48 @@ class SimulationEngine:
             self.step()
         return self.snapshot()
 
+    def extend_contact_plan(self, contacts: tuple[Contact, ...]) -> None:
+        """Merge a regenerated orbital plan, extending open windows in place.
+
+        Contact IDs are stable across plans regenerated from epoch zero. An end
+        event from an earlier, shorter plan is left in the heap and ignored when
+        it becomes stale; this keeps event queue mutation deterministic.
+        """
+        candidates = self._validate_contacts(contacts, self._nodes)
+        by_id = {contact.contact_id: contact for contact in self._contacts}
+        for candidate in candidates:
+            existing = by_id.get(candidate.contact_id)
+            if existing is not None:
+                if (
+                    existing.from_node != candidate.from_node
+                    or existing.to_node != candidate.to_node
+                    or existing.start_us != candidate.start_us
+                    or existing.rate_bits_per_second != candidate.rate_bits_per_second
+                    or existing.propagation_delay_us != candidate.propagation_delay_us
+                ):
+                    raise ValueError(f"regenerated contact {candidate.contact_id} changed identity")
+                if candidate.end_us > existing.end_us and candidate.end_us > self._time_us:
+                    by_id[candidate.contact_id] = candidate
+                    self._schedule(candidate.end_us, EventPriority.CONTACT_END, "contact_end", contact_id=candidate.contact_id)
+                    if existing.end_us <= self._time_us and candidate.start_us <= self._time_us:
+                        self._schedule_route_at_current_time()
+                continue
+            if candidate.end_us <= self._time_us:
+                continue
+            by_id[candidate.contact_id] = candidate
+            if candidate.start_us >= self._time_us:
+                self._schedule(candidate.start_us, EventPriority.CONTACT_START, "contact_start", contact_id=candidate.contact_id)
+            else:
+                self._schedule_route_at_current_time()
+            self._schedule(candidate.end_us, EventPriority.CONTACT_END, "contact_end", contact_id=candidate.contact_id)
+        merged = self._validate_contacts(tuple(by_id.values()), self._nodes)
+        self._contacts = merged
+        self._contacts_by_id = {contact.contact_id: contact for contact in merged}
+
+    def _schedule_route_at_current_time(self) -> None:
+        if any(bundle.status == BundleStatus.QUEUED for bundle in self._bundles.values()):
+            self._schedule_route("contact-plan-update", self._time_us)
+
     def _record(
         self,
         kind: str,
@@ -317,7 +384,7 @@ class SimulationEngine:
         if event.kind == "contact_start":
             self._record("contact_started", contact_id=event.contact_id)
         elif event.kind == "contact_end":
-            self._handle_contact_end(event.contact_id)
+            self._handle_contact_end(event.contact_id, event.time_us)
         elif event.kind == "contact_interruption":
             self._handle_contact_interruption(event.contact_id)
         elif event.kind == "bundle_generation":
@@ -346,6 +413,7 @@ class SimulationEngine:
         )
         self._schedule(expiry, EventPriority.EXPIRATION, "bundle_expiration", bundle_id=bundle_id)
         self._record("bundle_generated", bundle_id=bundle_id, node_id=request.source)
+        self._schedule_next_stream_bundle(bundle_id)
         if self._occupancy[request.source] + request.payload_bytes > source.buffer_capacity_bytes:
             self._record("bundle_rejected_at_source", bundle_id=bundle_id, node_id=request.source)
             return
@@ -357,6 +425,33 @@ class SimulationEngine:
         self._change_occupancy(request.source, request.payload_bytes)
         self._record("bundle_queued", bundle_id=bundle_id, node_id=request.source)
         self._schedule_route(bundle_id, self._time_us)
+
+    def _schedule_next_stream_bundle(self, template_id: str) -> None:
+        stream = self._bundle_streams.pop(template_id, None)
+        if stream is None:
+            return
+        while True:
+            bundle_id = f"{stream.stream_id}-AUTO-{stream.next_index:06d}"
+            stream.next_index += 1
+            if bundle_id not in self._requests:
+                break
+        template = stream.template
+        request = BundleRequest(
+            bundle_id=bundle_id,
+            source=template.source,
+            destination=template.destination,
+            payload_bytes=template.payload_bytes,
+            creation_time_us=self._time_us + stream.interval_us,
+            ttl_us=template.ttl_us,
+        )
+        self._requests[bundle_id] = request
+        self._schedule(
+            request.creation_time_us,
+            EventPriority.BUNDLE_GENERATION,
+            "bundle_generation",
+            bundle_id=bundle_id,
+        )
+        self._bundle_streams[bundle_id] = stream
 
     def _handle_expiration(self, bundle_id: str | None) -> None:
         if bundle_id is None:
@@ -578,6 +673,15 @@ class SimulationEngine:
                 ),
                 serialization_complete_us=event.time_us - contact.propagation_delay_us,
                 receiver_acceptance_us=event.time_us,
+                from_position_km=position_and_velocity_ecef(
+                    self._nodes[contact.from_node],
+                    event.time_us - contact.propagation_delay_us - serialization_duration_us(
+                        bundle.request.payload_bytes, contact.rate_bits_per_second
+                    ),
+                )[0],
+                to_position_km=position_and_velocity_ecef(
+                    self._nodes[receiver], event.time_us - contact.propagation_delay_us
+                )[0],
             )
         )
         if receiver == bundle.request.destination:
@@ -592,8 +696,11 @@ class SimulationEngine:
             self._schedule_route(bundle.request.bundle_id, self._time_us)
         self._wake_queued_bundles(except_bundle=bundle.request.bundle_id)
 
-    def _handle_contact_end(self, contact_id: str | None) -> None:
+    def _handle_contact_end(self, contact_id: str | None, event_time_us: int) -> None:
         if contact_id is None:
+            return
+        contact = self._contacts_by_id.get(contact_id)
+        if contact is None or contact.end_us != event_time_us:
             return
         bundle_id = self._active_by_contact.pop(contact_id, None)
         self._active_transmissions.pop(contact_id, None)
@@ -628,7 +735,12 @@ class SimulationEngine:
 
     def snapshot(self) -> SimulationSnapshot:
         nodes = tuple(
-            NodeSnapshot(node=self._nodes[node_id], buffer_occupancy_bytes=self._occupancy[node_id])
+            NodeSnapshot(
+                node=self._nodes[node_id],
+                buffer_occupancy_bytes=self._occupancy[node_id],
+                position_km=position_and_velocity_ecef(self._nodes[node_id], self._time_us)[0],
+                velocity_km_s=position_and_velocity_ecef(self._nodes[node_id], self._time_us)[1],
+            )
             for node_id in sorted(self._nodes)
         )
         bundles = tuple(

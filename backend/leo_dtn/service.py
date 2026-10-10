@@ -15,6 +15,7 @@ from .api_models import (
 )
 from .engine import SimulationEngine
 from .model import BundleRequest, Contact, ContactInterruption, Node
+from .orbit import generate_contact_plan
 from .routing import ContactAwareEarliestArrival, RoutingPolicy, StaticMinimumHop
 
 
@@ -22,6 +23,8 @@ ROUTING_POLICIES: dict[str, type[RoutingPolicy]] = {
     ContactAwareEarliestArrival.name: ContactAwareEarliestArrival,
     StaticMinimumHop.name: StaticMinimumHop,
 }
+CONTACT_PLAN_LOOKAHEAD_US = 120 * 1_000_000
+CONTACT_PLAN_EXTENSION_US = 3_600 * 1_000_000
 
 
 class InvalidRunTransition(Exception):
@@ -37,9 +40,11 @@ class SimulationSession:
     routing_policy_name: str
     status: str = "ready"
     engine: SimulationEngine = field(init=False)
+    initial_horizon_us: int = field(init=False)
     lock: RLock = field(default_factory=RLock, repr=False)
 
     def __post_init__(self) -> None:
+        self.initial_horizon_us = self.horizon_us
         self.engine = self._new_engine()
 
     def _new_engine(self) -> SimulationEngine:
@@ -47,9 +52,19 @@ class SimulationSession:
             policy_type = ROUTING_POLICIES[self.routing_policy_name]
         except KeyError as exc:
             raise ValueError(f"unknown routing policy: {self.routing_policy_name}") from exc
+        nodes = tuple(_node_to_domain(node) for node in self.configuration.nodes)
+        contacts = tuple(_contact_to_domain(contact) for contact in self.configuration.contacts)
+        if self.configuration.orbital_contact_generation:
+            contacts += generate_contact_plan(
+                nodes,
+                horizon_us=self.horizon_us,
+                sample_interval_us=self.configuration.contact_sample_interval_us,
+                rate_bits_per_second=self.configuration.orbital_link_rate_bits_per_second,
+                minimum_elevation_deg=self.configuration.minimum_elevation_deg,
+            )
         return SimulationEngine(
-            nodes=tuple(_node_to_domain(node) for node in self.configuration.nodes),
-            contacts=tuple(_contact_to_domain(contact) for contact in self.configuration.contacts),
+            nodes=nodes,
+            contacts=contacts,
             interruptions=tuple(
                 _interruption_to_domain(item) for item in self.configuration.interruptions
             ),
@@ -58,7 +73,12 @@ class SimulationSession:
 
     def initialize_bundles(self) -> None:
         for bundle in self.configuration.bundles:
-            self.engine.add_bundle(_bundle_to_domain(bundle))
+            request = _bundle_to_domain(bundle)
+            interval = self.configuration.bundle_generation_interval_us
+            if interval is None:
+                self.engine.add_bundle(request)
+            else:
+                self.engine.add_recurring_bundle(request, interval_us=interval)
 
     def start(self) -> None:
         with self.lock:
@@ -82,14 +102,18 @@ class SimulationSession:
         with self.lock:
             if self.status not in ("ready", "paused"):
                 raise InvalidRunTransition("step requires a ready or paused simulation")
-            if self._next_event_is_past_horizon():
+            if self.configuration.orbital_contact_generation:
+                next_time = self.engine.next_event_time_us
+                target = min(next_time if next_time is not None else self.horizon_us, self.horizon_us)
+                self._ensure_contact_plan(target)
+            elif self._next_event_is_past_horizon():
                 self.engine.run_until(self.horizon_us, max_events=0)
                 self.status = "completed"
                 return 0
             before = self.engine.events_processed
             self.engine.step()
             processed = self.engine.events_processed - before
-            if self._next_event_is_past_horizon():
+            if not self.configuration.orbital_contact_generation and self._next_event_is_past_horizon():
                 self.engine.run_until(self.horizon_us, max_events=0)
                 self.status = "completed"
             else:
@@ -100,7 +124,11 @@ class SimulationSession:
         with self.lock:
             if self.status != "running":
                 raise InvalidRunTransition("advance requires a running simulation")
-            if target_time_us < self.engine.time_us or target_time_us > self.horizon_us:
+            if target_time_us < self.engine.time_us:
+                raise ValueError("target time cannot be before the current simulated time")
+            if self.configuration.orbital_contact_generation:
+                self._ensure_contact_plan(target_time_us)
+            elif target_time_us > self.horizon_us:
                 raise ValueError("target time must be between current simulated time and horizon")
             before = self.engine.events_processed
             self.engine.run_until(target_time_us, max_events=max_events)
@@ -112,15 +140,34 @@ class SimulationSession:
                     or self.engine.next_event_time_us > target_time_us
                 )
             )
-            if reached_target and target_time_us == self.horizon_us:
+            if not self.configuration.orbital_contact_generation and reached_target and target_time_us == self.horizon_us:
                 self.status = "completed"
             return processed, reached_target
 
     def reset(self) -> None:
         with self.lock:
+            self.horizon_us = self.initial_horizon_us
             self.engine = self._new_engine()
             self.initialize_bundles()
             self.status = "ready"
+
+    def _ensure_contact_plan(self, target_time_us: int) -> None:
+        """Keep an orbital contact lookahead ahead of an unbounded run."""
+        if target_time_us + CONTACT_PLAN_LOOKAHEAD_US < self.horizon_us:
+            return
+        self.horizon_us = max(
+            self.horizon_us + CONTACT_PLAN_EXTENSION_US,
+            target_time_us + CONTACT_PLAN_LOOKAHEAD_US,
+        )
+        nodes = tuple(_node_to_domain(node) for node in self.configuration.nodes)
+        generated = generate_contact_plan(
+            nodes,
+            horizon_us=self.horizon_us,
+            sample_interval_us=self.configuration.contact_sample_interval_us,
+            rate_bits_per_second=self.configuration.orbital_link_rate_bits_per_second,
+            minimum_elevation_deg=self.configuration.minimum_elevation_deg,
+        )
+        self.engine.extend_contact_plan(generated)
 
     def _next_event_is_past_horizon(self) -> bool:
         next_time = self.engine.next_event_time_us
@@ -202,7 +249,7 @@ def default_scenario(scenario_id: str) -> SimulationConfigurationInput:
 
 
 def _node_to_domain(value: NodeInput) -> Node:
-    return Node(value.node_id, value.kind, value.buffer_capacity_bytes, value.position_km)
+    return Node(value.node_id, value.kind, value.buffer_capacity_bytes, value.position_km, value.orbit)
 
 
 def _contact_to_domain(value: ContactInput) -> Contact:
