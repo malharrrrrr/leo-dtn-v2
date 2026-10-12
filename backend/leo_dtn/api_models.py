@@ -201,6 +201,13 @@ class ScenarioSummary(APIModel):
     scenario_id: str
     name: str
     description: str
+    focus: str
+    node_count: int
+    satellite_count: int
+    ground_station_count: int
+    contact_count: int
+    bundle_count: int
+    orbital_contact_generation: bool
 
 
 class ScenarioResponse(ScenarioSummary):

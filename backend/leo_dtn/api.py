@@ -37,6 +37,7 @@ from .experiments import (
 )
 from .metrics import calculate_metrics
 from .service import InvalidRunTransition, SimulationManager, SimulationSession, default_scenario
+from .scenarios import scenario_catalog
 
 
 def create_app(manager: SimulationManager | None = None) -> FastAPI:
@@ -114,12 +115,20 @@ def create_app(manager: SimulationManager | None = None) -> FastAPI:
 
     @app.get("/scenarios", response_model=tuple[ScenarioSummary, ...])
     def list_scenarios():
-        return (
+        return tuple(
             ScenarioSummary(
-                scenario_id="relay-vertical-slice",
-                name="Relay vertical slice",
-                description="A source, relay, and destination connected by time-dependent contacts.",
-            ),
+                scenario_id=item.scenario_id,
+                name=item.name,
+                description=item.description,
+                focus=item.focus,
+                node_count=len(item.nodes),
+                satellite_count=sum(node.kind.value == "satellite" for node in item.nodes),
+                ground_station_count=sum(node.kind.value == "ground_station" for node in item.nodes),
+                contact_count=len(item.contacts),
+                bundle_count=len(item.bundles),
+                orbital_contact_generation=item.orbital_contact_generation,
+            )
+            for item in scenario_catalog()
         )
 
     @app.get("/scenarios/{scenario_id}", response_model=ScenarioResponse)
@@ -128,10 +137,18 @@ def create_app(manager: SimulationManager | None = None) -> FastAPI:
             config = default_scenario(scenario_id)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="scenario not found") from exc
+        definition = next(item for item in scenario_catalog() if item.scenario_id == scenario_id)
         return ScenarioResponse(
             scenario_id=scenario_id,
-            name="Relay vertical slice",
-            description="A source, relay, and destination connected by time-dependent contacts.",
+            name=definition.name,
+            description=definition.description,
+            focus=definition.focus,
+            node_count=len(definition.nodes),
+            satellite_count=sum(node.kind.value == "satellite" for node in definition.nodes),
+            ground_station_count=sum(node.kind.value == "ground_station" for node in definition.nodes),
+            contact_count=len(definition.contacts),
+            bundle_count=len(definition.bundles),
+            orbital_contact_generation=definition.orbital_contact_generation,
             configuration=config,
         )
 

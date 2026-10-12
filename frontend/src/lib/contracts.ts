@@ -43,6 +43,23 @@ export interface SimulationConfig {
   orbital_link_rate_bits_per_second?: number;
 }
 
+export interface ScenarioSummary {
+  scenario_id: string;
+  name: string;
+  description: string;
+  focus: string;
+  node_count: number;
+  satellite_count: number;
+  ground_station_count: number;
+  contact_count: number;
+  bundle_count: number;
+  orbital_contact_generation: boolean;
+}
+
+export interface ScenarioDetails extends ScenarioSummary {
+  configuration: SimulationConfig;
+}
+
 export interface ForwardingRecord {
   from_node: string;
   to_node: string;

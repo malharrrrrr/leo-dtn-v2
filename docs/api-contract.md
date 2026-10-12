@@ -20,7 +20,7 @@ An inline configuration may specify circular-orbit elements for satellites and e
 
 | Method and path | Response |
 |---|---|
-| `GET /scenarios`, `GET /scenarios/{scenario_id}` | Registered scenario summaries and validated configuration. Initially includes `relay-vertical-slice`. |
+| `GET /scenarios`, `GET /scenarios/{scenario_id}` | Registered preset summaries (purpose, node counts, contact mode, bundle counts) and validated normalized configurations. Presets: direct contact baseline, store-and-forward relay, intermittent multi-hop, relay buffer pressure, and moving LEO constellation. |
 | `GET /simulations/{id}` | Lifecycle state, simulated time, horizon, seed, routing policy, and node/contact/bundle counts. |
 | `GET /simulations/{id}/snapshot` | Full read-only current view with nodes, contacts, bundles, active transmissions, and ordered event history. |
 | `GET /simulations/{id}/nodes`, `/nodes/{node_id}` | Node kind, configured buffer, current occupancy, engine-derived ECEF position/velocity, and orbital elements when applicable. |
@@ -35,6 +35,8 @@ All query responses are projections from immutable engine snapshots. They do not
 ## Frontend update model
 
 Poll run status and the compact snapshot while a run is active. Fetch event pages by sequence cursor and metrics when needed. For orbital runs, the API process advances simulated time by one simulated second about every 120 ms while the session is running; the dashboard only polls and renders snapshots. Closing the dashboard does not stop the run, but pausing or stopping/restarting the API does. The pacing task lives outside the engine; event timestamps and outcomes remain deterministic for a given configuration and requested advancement sequence. Explicit-contact runs still advance through bounded `/advance` commands. Consider WebSockets only if polling proves inadequate.
+
+The Scenarios view reads summaries from `GET /scenarios` and loads one selected configuration from `GET /scenarios/{scenario_id}`. “Use this preset” copies that API-returned configuration into the dashboard’s next-run setup; it does not start a run or mutate an existing engine session. User-editable custom configurations remain a Simulation setup feature, separate from the read-only preset catalog.
 
 ## Current limitations
 

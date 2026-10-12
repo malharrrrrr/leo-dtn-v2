@@ -9,6 +9,7 @@ import { advanceSimulation, createSimulation, getMetrics, getSimulation, postCon
 import type { BundleConfig, BundleState, ContactConfig, Metrics, NodeConfig, RoutingPolicy, RunStatus, SimulationConfig, SimulationSnapshot } from "@/lib/contracts";
 import { NetworkScene } from "./network-scene";
 import { NetworkTopology } from "./network-topology";
+import { cloneScenarioConfiguration, ScenarioLibrary } from "./scenario-library";
 
 const EARTH_RADIUS_KM = 6371;
 const groundPosition = (latitude: number, longitude: number): [number, number, number] => {
@@ -70,6 +71,8 @@ export function Dashboard() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [followPacket, setFollowPacket] = useState(true);
   const [viewMode, setViewMode] = useState<"globe" | "topology">("globe");
+  const [activeTab, setActiveTab] = useState<"simulation" | "scenarios">("simulation");
+  const [loadedScenarioName, setLoadedScenarioName] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inFlight = useRef(false);
@@ -222,25 +225,43 @@ export function Dashboard() {
     ? "Chooses the next hop using the configured future contact plan."
     : "Chooses the route with the fewest configured hops; timing is still enforced by contacts.";
   const startDisabled = busy || status === "running" || !configuration.nodes.length;
+  const loadScenarioPreset = (scenario: { name: string; configuration: SimulationConfig }) => {
+    const nextConfiguration = cloneScenarioConfiguration(scenario.configuration);
+    setError(null);
+    setConfiguration(nextConfiguration);
+    setLoadedScenarioName(scenario.name);
+    setAdvanced({
+      ttlSeconds: Math.round((nextConfiguration.bundles[0]?.ttl_us ?? 21_600_000_000) / 1_000_000),
+      bundleSizeMb: (nextConfiguration.bundles[0]?.payload_bytes ?? 50_000_000) / 1_000_000,
+      bufferGb: Math.max(0, ...nextConfiguration.nodes.map((node) => node.buffer_capacity_bytes / 1_000_000_000)),
+      linkRateMbps: (nextConfiguration.orbital_link_rate_bits_per_second ?? nextConfiguration.contacts[0]?.rate_bits_per_second ?? 100_000_000) / 1_000_000,
+      trafficIntervalSeconds: (nextConfiguration.bundle_generation_interval_us ?? 60_000_000) / 1_000_000,
+    });
+    setHorizonSeconds(nextConfiguration.orbital_contact_generation
+      ? 600
+      : Math.max(1, Math.ceil(Math.max(0, ...nextConfiguration.contacts.map((contact) => contact.end_us)) / 1_000_000)));
+    setActiveTab("simulation");
+  };
 
   return (
     <main className="app-shell">
       <header className="topbar">
         <div className="brand"><div className="brand-mark"><Globe2 size={22} /></div><div><b>LEO-DTN</b><span>Satellite Network Simulator</span></div></div>
-        <nav className="top-nav"><button className="nav-item selected"><Play size={15} /> Simulation</button><button className="nav-item" disabled><Activity size={15} /> Experiments</button><button className="nav-item" disabled><Layers3 size={15} /> Scenarios</button></nav>
+        <nav className="top-nav"><button className={`nav-item ${activeTab === "simulation" ? "selected" : ""}`} onClick={() => setActiveTab("simulation")}><Play size={15} /> Simulation</button><button className="nav-item" disabled title="Experiment analysis is not implemented yet"><Activity size={15} /> Experiments</button><button className={`nav-item ${activeTab === "scenarios" ? "selected" : ""}`} onClick={() => setActiveTab("scenarios")}><Layers3 size={15} /> Scenarios</button></nav>
         <div className="status-chip"><span className={`status-dot ${status}`} /><div><b>{status === "ready" ? "Simulator Ready" : status[0].toUpperCase() + status.slice(1)}</b><small>t = {snapshot ? seconds(snapshot.time_us) : "0.00 s"}</small></div></div>
-        <button className="primary top-run" onClick={() => snapshot ? sendControl(status === "paused" ? "resume" : "start") : startNewSimulation()} disabled={busy || status === "running" || status === "completed"}>
-          {busy ? <LoaderCircle className="spin" size={16} /> : status === "running" ? <Activity size={16} /> : <Play size={16} />}
-          {snapshot ? status === "paused" ? "Resume" : status === "running" ? "Running" : "Run Simulation" : "Run Simulation"}
+        <button className="primary top-run" onClick={() => activeTab === "scenarios" ? setActiveTab("simulation") : snapshot ? sendControl(status === "paused" ? "resume" : "start") : startNewSimulation()} disabled={activeTab === "simulation" && (busy || status === "running" || status === "completed")}>
+          {activeTab === "scenarios" ? <Play size={16} /> : busy ? <LoaderCircle className="spin" size={16} /> : status === "running" ? <Activity size={16} /> : <Play size={16} />}
+          {activeTab === "scenarios" ? "Back to simulation" : snapshot ? status === "paused" ? "Resume" : status === "running" ? "Running" : "Run Simulation" : "Run Simulation"}
         </button>
       </header>
 
-      <div className="dashboard-grid">
+      {activeTab === "scenarios" ? <ScenarioLibrary canLoadPreset={status !== "running"} onLoadPreset={loadScenarioPreset} /> : <div className="dashboard-grid">
         <aside className="left-column">
           <section className="panel setup-panel">
             <div className="panel-heading"><div className="heading-icon blue"><Waypoints size={16} /></div><h2>Simulation setup</h2><span className="section-tag">CONFIG</span></div>
             <label className="field-label">Scenario</label>
-            <select className="select-control" value="custom" onChange={() => undefined}><option value="custom">Custom LEO network</option></select>
+            <button className="select-control scenario-picker-button" onClick={() => setActiveTab("scenarios")}><span>{loadedScenarioName ?? "Custom LEO network"}</span><Layers3 size={14} /></button>
+            <p className="algorithm-copy">{loadedScenarioName ? "Preset loaded. Changes apply to the next simulation run." : "Build a custom network here or choose a preset scenario."}</p>
             <label className="field-label">Routing algorithm</label>
             <select className="select-control" value={routingPolicy} onChange={(event) => setRoutingPolicy(event.target.value as RoutingPolicy)}>
               <option value="contact_aware_earliest_arrival">Contact-aware earliest arrival</option>
@@ -374,7 +395,7 @@ export function Dashboard() {
           </section>
           <div className="data-note"><i /> Positions, line-of-sight windows, transfers, and paths come from the engine. Circular-orbit geometry is simplified and is not an operational prediction.</div>
         </aside>
-      </div>
+      </div>}
     </main>
   );
 }

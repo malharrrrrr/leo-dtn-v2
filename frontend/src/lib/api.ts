@@ -1,4 +1,4 @@
-import type { CreatedSimulation, Metrics, RoutingPolicy, SimulationConfig, SimulationSnapshot } from "./contracts";
+import type { CreatedSimulation, Metrics, RoutingPolicy, ScenarioDetails, ScenarioSummary, SimulationConfig, SimulationSnapshot } from "./contracts";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
@@ -20,6 +20,14 @@ export async function createSimulation(configuration: SimulationConfig, routingP
     method: "POST",
     body: JSON.stringify({ configuration, routing_policy: routingPolicy, random_seed: seed, horizon_us: horizonUs }),
   });
+}
+
+export function getScenarios() {
+  return request<ScenarioSummary[]>("/scenarios");
+}
+
+export function getScenario(scenarioId: string) {
+  return request<ScenarioDetails>(`/scenarios/${encodeURIComponent(scenarioId)}`);
 }
 
 export function postControl(id: string, action: "start" | "pause" | "resume" | "step" | "reset") {

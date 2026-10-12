@@ -223,11 +223,11 @@ class SimulationManager:
 
 
 def default_scenario(scenario_id: str) -> SimulationConfigurationInput:
-    if scenario_id != "relay-vertical-slice":
-        raise KeyError(scenario_id)
-    from .scenarios import relay_vertical_slice_inputs
+    from .scenarios import scenario_catalog
 
-    nodes, contacts, bundles = relay_vertical_slice_inputs()
+    definition = next((item for item in scenario_catalog() if item.scenario_id == scenario_id), None)
+    if definition is None:
+        raise KeyError(scenario_id)
     return SimulationConfigurationInput(
         nodes=tuple(
             NodeInput(
@@ -235,8 +235,9 @@ def default_scenario(scenario_id: str) -> SimulationConfigurationInput:
                 kind=item.kind,
                 buffer_capacity_bytes=item.buffer_capacity_bytes,
                 position_km=item.position_km,
+                orbit=item.orbit,
             )
-            for item in nodes
+            for item in definition.nodes
         ),
         contacts=tuple(
             ContactInput(
@@ -248,7 +249,7 @@ def default_scenario(scenario_id: str) -> SimulationConfigurationInput:
                 rate_bits_per_second=item.rate_bits_per_second,
                 propagation_delay_us=item.propagation_delay_us,
             )
-            for item in contacts
+            for item in definition.contacts
         ),
         bundles=tuple(
             BundleInput(
@@ -259,8 +260,12 @@ def default_scenario(scenario_id: str) -> SimulationConfigurationInput:
                 creation_time_us=item.creation_time_us,
                 ttl_us=item.ttl_us,
             )
-            for item in bundles
+            for item in definition.bundles
         ),
+        orbital_contact_generation=definition.orbital_contact_generation,
+        contact_sample_interval_us=definition.contact_sample_interval_us,
+        minimum_elevation_deg=definition.minimum_elevation_deg,
+        orbital_link_rate_bits_per_second=definition.orbital_link_rate_bits_per_second,
     )
 
 
