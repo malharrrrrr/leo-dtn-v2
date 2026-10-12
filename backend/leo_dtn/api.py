@@ -37,7 +37,7 @@ from .experiments import (
 )
 from .metrics import calculate_metrics
 from .service import InvalidRunTransition, SimulationManager, SimulationSession, default_scenario
-from .scenarios import scenario_catalog
+from .scenarios import scenario_catalog, scenario_definition
 
 
 def create_app(manager: SimulationManager | None = None) -> FastAPI:
@@ -137,7 +137,8 @@ def create_app(manager: SimulationManager | None = None) -> FastAPI:
             config = default_scenario(scenario_id)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="scenario not found") from exc
-        definition = next(item for item in scenario_catalog() if item.scenario_id == scenario_id)
+        definition = scenario_definition(scenario_id)
+        assert definition is not None
         return ScenarioResponse(
             scenario_id=scenario_id,
             name=definition.name,

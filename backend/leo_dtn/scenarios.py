@@ -24,6 +24,7 @@ class ScenarioDefinition:
     contact_sample_interval_us: int = 10 * SECOND
     minimum_elevation_deg: float = 10.0
     orbital_link_rate_bits_per_second: int = 100_000_000
+    bundle_generation_interval_us: int | None = None
 
 
 def relay_vertical_slice_inputs() -> tuple[tuple[Node, ...], tuple[Contact, ...], tuple[BundleRequest, ...]]:
@@ -60,66 +61,7 @@ def relay_vertical_slice() -> SimulationEngine:
 
 
 def scenario_catalog() -> tuple[ScenarioDefinition, ...]:
-    """Return the built-in, reproducible presets shown in the Scenarios tab."""
-    relay_nodes, relay_contacts, relay_bundles = relay_vertical_slice_inputs()
-    direct = ScenarioDefinition(
-        scenario_id="direct-contact-baseline",
-        name="Direct contact baseline",
-        description="A single scheduled ground-station contact delivers one bundle without a relay.",
-        focus="Direct delivery and serialization timing",
-        nodes=(
-            Node("GS-SOURCE", NodeKind.GROUND_STATION, 100_000_000),
-            Node("GS-DEST", NodeKind.GROUND_STATION, 100_000_000),
-        ),
-        contacts=(Contact("C-DIRECT", "GS-SOURCE", "GS-DEST", 0, 20 * SECOND, 100_000_000),),
-        bundles=(BundleRequest("BND-DIRECT", "GS-SOURCE", "GS-DEST", 1_000_000, 2 * SECOND, 60 * SECOND),),
-    )
-    relay = ScenarioDefinition(
-        scenario_id="relay-vertical-slice",
-        name="Store-and-forward relay",
-        description="A bundle reaches a relay, waits through a contact gap, then forwards to its destination.",
-        focus="Store-carry-forward behavior",
-        nodes=relay_nodes,
-        contacts=relay_contacts,
-        bundles=relay_bundles,
-    )
-    multi_hop = ScenarioDefinition(
-        scenario_id="intermittent-multi-hop",
-        name="Intermittent multi-hop path",
-        description="Three separated contact windows require two relays and observable waiting at each hop.",
-        focus="Sequential contacts and multi-hop forwarding",
-        nodes=(
-            Node("GS-A", NodeKind.GROUND_STATION, 10_000),
-            Node("SAT-R1", NodeKind.SATELLITE, 10_000),
-            Node("SAT-R2", NodeKind.SATELLITE, 10_000),
-            Node("GS-B", NodeKind.GROUND_STATION, 10_000),
-        ),
-        contacts=(
-            Contact("C-A-R1", "GS-A", "SAT-R1", 0, 10 * SECOND, 8_000),
-            Contact("C-R1-R2", "SAT-R1", "SAT-R2", 20 * SECOND, 30 * SECOND, 8_000),
-            Contact("C-R2-B", "SAT-R2", "GS-B", 40 * SECOND, 50 * SECOND, 8_000),
-        ),
-        bundles=(BundleRequest("BND-MULTI", "GS-A", "GS-B", 1_000, 2 * SECOND, 100 * SECOND),),
-    )
-    buffer_pressure = ScenarioDefinition(
-        scenario_id="relay-buffer-pressure",
-        name="Relay buffer pressure",
-        description="Two bundles are generated together while the source can store only one of them.",
-        focus="Finite source storage and rejection",
-        nodes=(
-            Node("GS-A", NodeKind.GROUND_STATION, 1_000),
-            Node("SAT-R", NodeKind.SATELLITE, 1_000),
-            Node("GS-B", NodeKind.GROUND_STATION, 10_000),
-        ),
-        contacts=(
-            Contact("C-A-R-1", "GS-A", "SAT-R", 0, 10 * SECOND, 8_000),
-            Contact("C-R-B", "SAT-R", "GS-B", 10 * SECOND, 20 * SECOND, 8_000),
-        ),
-        bundles=(
-            BundleRequest("BND-PRESS-1", "GS-A", "GS-B", 1_000, SECOND, 100 * SECOND),
-            BundleRequest("BND-PRESS-2", "GS-A", "GS-B", 1_000, SECOND, 100 * SECOND),
-        ),
-    )
+    """Return presets derived from the same moving Mumbai–New York LEO demo."""
     earth_radius = 6_371.0
 
     def earth_fixed_position(latitude_deg: float, longitude_deg: float) -> tuple[float, float, float]:
@@ -131,22 +73,103 @@ def scenario_catalog() -> tuple[ScenarioDefinition, ...]:
             earth_radius * math.sin(latitude),
         )
 
-    orbital_pairs = ((59, 22), (102, 1.6), (0, 53), (45, 0), (90, 37), (135, 90), (180, 143), (225, 196))
-    orbital = ScenarioDefinition(
-        scenario_id="leo-mumbai-new-york",
-        name="Moving LEO constellation",
-        description="A bundle travels between distant ground stations using moving satellites and geometry-derived contact windows.",
-        focus="Orbital motion and changing line-of-sight contacts",
-        nodes=(
-            Node("GS-MUMBAI", NodeKind.GROUND_STATION, 10_000_000_000, earth_fixed_position(19.076, 72.878)),
-            *(Node(
-                f"SAT-{index:02d}", NodeKind.SATELLITE, 10_000_000_000,
-                orbit=CircularOrbit(550, 53, raan, phase),
-            ) for index, (raan, phase) in enumerate(orbital_pairs, 1)),
-            Node("GS-NEW-YORK", NodeKind.GROUND_STATION, 10_000_000_000, earth_fixed_position(40.7128, -74.006)),
-        ),
-        contacts=(),
-        bundles=(BundleRequest("BND-LEO", "GS-MUMBAI", "GS-NEW-YORK", 50_000_000, 2 * SECOND, 6 * 60 * 60 * SECOND),),
-        orbital_contact_generation=True,
+    default_orbits = ((59, 22), (102, 1.6), (0, 53), (45, 0), (90, 37), (135, 90), (180, 143), (225, 196))
+    expanded_orbits = default_orbits + tuple(
+        (22.5 + index * 45, 18 + index * 41)
+        for index in range(8)
     )
-    return direct, relay, multi_hop, buffer_pressure, orbital
+
+    def leo_preset(
+        *,
+        scenario_id: str,
+        name: str,
+        description: str,
+        focus: str,
+        orbit_elements: tuple[tuple[float, float], ...],
+        satellite_buffer_bytes: int = 10_000_000_000,
+        ground_buffer_bytes: int = 10_000_000_000,
+        bundle_payload_bytes: int = 50_000_000,
+        bundle_interval_us: int = 60 * SECOND,
+    ) -> ScenarioDefinition:
+        nodes = (
+            Node("GS-MUMBAI", NodeKind.GROUND_STATION, ground_buffer_bytes, earth_fixed_position(19.076, 72.878)),
+            *(Node(
+                f"SAT-{index:02d}", NodeKind.SATELLITE, satellite_buffer_bytes,
+                orbit=CircularOrbit(550, 53, raan, phase),
+            ) for index, (raan, phase) in enumerate(orbit_elements, 1)),
+            Node("GS-NEW-YORK", NodeKind.GROUND_STATION, ground_buffer_bytes, earth_fixed_position(40.7128, -74.006)),
+        )
+        return ScenarioDefinition(
+            scenario_id=scenario_id,
+            name=name,
+            description=description,
+            focus=focus,
+            nodes=nodes,
+            contacts=(),
+            bundles=(BundleRequest(
+                "BND-001", "GS-MUMBAI", "GS-NEW-YORK", bundle_payload_bytes,
+                2 * SECOND, 6 * 60 * 60 * SECOND,
+            ),),
+            orbital_contact_generation=True,
+            bundle_generation_interval_us=bundle_interval_us,
+        )
+
+    return (
+        leo_preset(
+            scenario_id="leo-mumbai-new-york",
+            name="Mumbai–New York · baseline",
+            description="The same eight-satellite constellation and recurring traffic used by the default Simulation setup.",
+            focus="Baseline moving LEO contacts and store-carry-forward delivery",
+            orbit_elements=default_orbits,
+        ),
+        leo_preset(
+            scenario_id="leo-sparse-constellation",
+            name="Mumbai–New York · sparse constellation",
+            description="Keeps the same stations, orbits, bundle, and traffic, but uses four of the baseline satellites.",
+            focus="How fewer satellites affect contact availability and delivery",
+            orbit_elements=default_orbits[::2],
+        ),
+        leo_preset(
+            scenario_id="leo-limited-buffers",
+            name="Mumbai–New York · limited buffers",
+            description="Keeps the baseline constellation and traffic while reducing relay buffers to one bundle each.",
+            focus="How finite satellite storage affects recurring bundle delivery",
+            orbit_elements=default_orbits,
+            satellite_buffer_bytes=50_000_000,
+        ),
+        leo_preset(
+            scenario_id="leo-high-traffic",
+            name="Mumbai–New York · high traffic",
+            description="Keeps the baseline constellation but generates 100 MB bundles every 15 simulated seconds.",
+            focus="How higher offered load affects delivery and queueing",
+            orbit_elements=default_orbits,
+            bundle_payload_bytes=100_000_000,
+            bundle_interval_us=15 * SECOND,
+        ),
+        leo_preset(
+            scenario_id="leo-expanded-constellation",
+            name="Mumbai–New York · expanded constellation",
+            description="Adds eight moving satellites to the same baseline orbital setup and traffic pattern.",
+            focus="How a larger constellation changes generated contact opportunities",
+            orbit_elements=expanded_orbits,
+        ),
+    )
+
+
+def scenario_definition(scenario_id: str) -> ScenarioDefinition | None:
+    """Look up a selectable preset or the retained hand-checkable relay fixture."""
+    selected = next((item for item in scenario_catalog() if item.scenario_id == scenario_id), None)
+    if selected is not None:
+        return selected
+    if scenario_id != "relay-vertical-slice":
+        return None
+    nodes, contacts, bundles = relay_vertical_slice_inputs()
+    return ScenarioDefinition(
+        scenario_id="relay-vertical-slice",
+        name="Store-and-forward engine fixture",
+        description="A small deterministic fixture for testing relay storage and contact-window event ordering.",
+        focus="Engine verification; not a moving LEO preset",
+        nodes=nodes,
+        contacts=contacts,
+        bundles=bundles,
+    )

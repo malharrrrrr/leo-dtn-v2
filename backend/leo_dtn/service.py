@@ -223,9 +223,9 @@ class SimulationManager:
 
 
 def default_scenario(scenario_id: str) -> SimulationConfigurationInput:
-    from .scenarios import scenario_catalog
+    from .scenarios import scenario_definition
 
-    definition = next((item for item in scenario_catalog() if item.scenario_id == scenario_id), None)
+    definition = scenario_definition(scenario_id)
     if definition is None:
         raise KeyError(scenario_id)
     return SimulationConfigurationInput(
@@ -266,6 +266,7 @@ def default_scenario(scenario_id: str) -> SimulationConfigurationInput:
         contact_sample_interval_us=definition.contact_sample_interval_us,
         minimum_elevation_deg=definition.minimum_elevation_deg,
         orbital_link_rate_bits_per_second=definition.orbital_link_rate_bits_per_second,
+        bundle_generation_interval_us=definition.bundle_generation_interval_us,
     )
 
 

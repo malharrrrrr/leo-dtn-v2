@@ -77,7 +77,7 @@ export function ScenarioLibrary({ canLoadPreset, onLoadPreset }: ScenarioLibrary
             <div className="scenario-focus-panel"><span>WHAT THIS DEMONSTRATES</span><b>{selected.focus}</b></div>
             <div className="scenario-count-grid"><DetailCount label="Satellites" value={selected.satellite_count} /><DetailCount label="Ground stations" value={selected.ground_station_count} /><DetailCount label="Bundles" value={selected.bundle_count} /><DetailCount label="Contacts" value={selected.orbital_contact_generation ? "Generated" : selected.contact_count} /></div>
             <div className="scenario-detail-section"><div className="scenario-section-title"><Waypoints size={14} /> Network nodes</div>
-              <div className="scenario-node-list">{selected.configuration.nodes.map((node) => <div className="scenario-node" key={node.node_id}><span className={`scenario-node-dot ${node.kind}`} /><b>{node.node_id}</b><small>{node.kind === "satellite" ? node.orbit ? `${node.orbit.altitude_km.toFixed(0)} km circular orbit` : "Satellite relay" : "Ground station"}</small></div>)}</div>
+              <div className="scenario-node-list">{selected.configuration.nodes.map((node) => <div className="scenario-node" key={node.node_id}><span className={`scenario-node-dot ${node.kind}`} /><b>{node.node_id}</b><small>{node.kind === "satellite" ? `${node.orbit?.altitude_km.toFixed(0) ?? "—"} km orbit · ${capacity(node.buffer_capacity_bytes)}` : `Ground station · ${capacity(node.buffer_capacity_bytes)}`}</small></div>)}</div>
             </div>
             <div className="scenario-detail-section"><div className="scenario-section-title"><Clock3 size={14} /> Contact model</div>
               {selected.orbital_contact_generation
@@ -85,7 +85,7 @@ export function ScenarioLibrary({ canLoadPreset, onLoadPreset }: ScenarioLibrary
                 : <div className="scenario-contact-list">{selected.configuration.contacts.map((contact) => <div className="scenario-contact" key={contact.contact_id}><span>{contact.from_node}</span><ArrowDownRight size={13} /><span>{contact.to_node}</span><small>{(contact.start_us / 1_000_000).toFixed(0)}–{(contact.end_us / 1_000_000).toFixed(0)} s</small></div>)}</div>}
             </div>
             <div className="scenario-detail-section"><div className="scenario-section-title"><Layers3 size={14} /> Bundle setup</div>
-              {selected.configuration.bundles.map((bundle) => <div className="scenario-bundle" key={bundle.bundle_id}><b>{bundle.bundle_id}</b><span>{bundle.source} → {bundle.destination}</span><small>{(bundle.payload_bytes / 1_000_000).toFixed(2)} MB · TTL {(bundle.ttl_us / 1_000_000).toFixed(0)} s</small></div>)}
+              {selected.configuration.bundles.map((bundle) => <div className="scenario-bundle" key={bundle.bundle_id}><b>{bundle.bundle_id}</b><span>{bundle.source} → {bundle.destination}</span><small>{(bundle.payload_bytes / 1_000_000).toFixed(2)} MB · TTL {(bundle.ttl_us / 1_000_000).toFixed(0)} s{selected.configuration.bundle_generation_interval_us ? ` · repeat every ${(selected.configuration.bundle_generation_interval_us / 1_000_000).toFixed(0)} s` : ""}</small></div>)}
             </div>
             <button className="primary full-width scenario-load-button" onClick={() => onLoadPreset(selected)} disabled={!canLoadPreset}><Check size={15} /> Use this preset</button>
             {!canLoadPreset && <p className="scenario-disabled-note">Pause the active simulation before loading a preset.</p>}
@@ -99,6 +99,12 @@ export function ScenarioLibrary({ canLoadPreset, onLoadPreset }: ScenarioLibrary
 
 function DetailCount({ label, value }: { label: string; value: number | string }) {
   return <div className="scenario-count"><b>{value}</b><span>{label}</span></div>;
+}
+
+function capacity(bytes: number) {
+  return bytes >= 1_000_000_000
+    ? `${(bytes / 1_000_000_000).toFixed(0)} GB buffer`
+    : `${(bytes / 1_000_000).toFixed(0)} MB buffer`;
 }
 
 export function cloneScenarioConfiguration(configuration: SimulationConfig): SimulationConfig {

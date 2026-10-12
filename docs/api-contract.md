@@ -20,7 +20,7 @@ An inline configuration may specify circular-orbit elements for satellites and e
 
 | Method and path | Response |
 |---|---|
-| `GET /scenarios`, `GET /scenarios/{scenario_id}` | Registered preset summaries (purpose, node counts, contact mode, bundle counts) and validated normalized configurations. Presets: direct contact baseline, store-and-forward relay, intermittent multi-hop, relay buffer pressure, and moving LEO constellation. |
+| `GET /scenarios`, `GET /scenarios/{scenario_id}` | Selectable preset summaries (purpose, node counts, contact mode, bundle counts) and validated normalized configurations. The five selectable presets share the default moving Mumbai–New York LEO setup and vary satellite count, buffer capacity, or traffic. The hand-checkable `relay-vertical-slice` remains directly addressable for engine verification but is not presented as a moving-LEO preset. |
 | `GET /simulations/{id}` | Lifecycle state, simulated time, horizon, seed, routing policy, and node/contact/bundle counts. |
 | `GET /simulations/{id}/snapshot` | Full read-only current view with nodes, contacts, bundles, active transmissions, and ordered event history. |
 | `GET /simulations/{id}/nodes`, `/nodes/{node_id}` | Node kind, configured buffer, current occupancy, engine-derived ECEF position/velocity, and orbital elements when applicable. |
