@@ -30,7 +30,7 @@ An inline configuration may specify circular-orbit elements for satellites and e
 | `GET /simulations/{id}/metrics` | Current-cutoff metrics and per-node/per-contact breakdowns; pending bundles remain undelivered, not expired. |
 | `GET /simulations/{id}/export?format=json\|scenario_csv\|events_csv\|metrics_csv` | Downloadable current run manifest, configuration, event history, and/or metrics. |
 
-All query responses are projections from immutable engine snapshots. They do not expose event queues or mutable engine objects. Bundle paths contain actual successful forwarding events only, with endpoint positions captured at the transmission/serialization times; the API does not invent a predicted delivery time. Contact status is derived from current simulated time and interruption history.
+All query responses are projections from immutable engine snapshots. They do not expose event queues or mutable engine objects. Each bundle retains its actual successful forwarding records for the full in-memory run, and the snapshot includes every bundle rather than only the currently selected one. The dashboard can therefore build a run-wide transfer ledger while preserving each bundle's full path. Forwarding records include endpoint positions captured at the transmission/serialization times; the API does not invent a predicted delivery time. Contact status is derived from current simulated time and interruption history.
 
 ## Frontend update model
 

@@ -261,6 +261,16 @@ input:focus, select:focus { border-color: #3d91e7; box-shadow: 0 0 0 2px rgba(54
 .path-dot { z-index: 1; width: 7px; height: 7px; flex: 0 0 auto; margin-top: 3px; border-radius: 50%; background: #2189e5; box-shadow: 0 0 7px rgba(33, 137, 229, .5); }
 .path-step b, .path-step small { display: block; }
 .path-step b { font-size: 9px; }.path-step small { color: #8090a3; margin-top: 3px; font: 8px "DM Mono", monospace; }
+.transfer-count { margin-left: auto; color: #8292a6; font: 8px "DM Mono", monospace; }
+.transfer-history-list { display: flex; flex-direction: column; max-height: 250px; overflow-y: auto; }
+.transfer-history-row { display: flex; align-items: flex-start; gap: 8px; width: 100%; padding: 8px 2px; border: 0; border-bottom: 1px solid #202d3c; background: transparent; color: #dbe8f5; text-align: left; cursor: pointer; }
+.transfer-history-row:hover { background: rgba(45, 117, 174, .09); }
+.transfer-history-time { flex: 0 0 52px; padding-top: 1px; color: #7e91a7; font: 8px "DM Mono", monospace; }
+.transfer-history-content { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.transfer-history-content b { font-size: 9px; overflow-wrap: anywhere; }
+.transfer-history-content small { color: #7f90a4; font: 8px "DM Mono", monospace; overflow-wrap: anywhere; }
+.show-older-transfers { width: 100%; margin-top: 7px; padding: 7px; border: 1px solid #2b3b4e; border-radius: 6px; background: #141f2d; color: #91caff; font-size: 8px; cursor: pointer; }
+.transfer-history-note { margin: 8px 0 0; color: #708196; font-size: 8px; line-height: 1.45; }
 .empty-copy { margin: 6px 0; color: #738498; font-size: 9px; line-height: 1.55; }
 .live-indicator { display: flex; align-items: center; gap: 6px; color: #8d9cad; font: 8px "DM Mono", monospace; text-transform: uppercase; }
 .live-indicator i { display: block; width: 6px; height: 6px; }

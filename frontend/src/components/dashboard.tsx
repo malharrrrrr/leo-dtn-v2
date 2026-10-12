@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
-  Activity, AlertCircle, ChevronDown, CircleHelp, Globe2, Layers3, Link2, LoaderCircle,
+  Activity, AlertCircle, ChevronDown, CircleHelp, Globe2, History, Layers3, Link2, LoaderCircle,
   Pause, Play, Plus, RotateCcw, Satellite, SkipForward, Sparkles, Waypoints,
 } from "lucide-react";
 import { advanceSimulation, createSimulation, getMetrics, getSimulation, postControl } from "@/lib/api";
@@ -68,6 +68,8 @@ export function Dashboard() {
   const [snapshot, setSnapshot] = useState<SimulationSnapshot | null>(null);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [selectedBundleId, setSelectedBundleId] = useState<string | null>(INITIAL_CONFIG.bundles[0].bundle_id);
+  const [historySelectedBundleId, setHistorySelectedBundleId] = useState<string | null>(null);
+  const [transferHistoryLimit, setTransferHistoryLimit] = useState(20);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [followPacket, setFollowPacket] = useState(true);
   const [viewMode, setViewMode] = useState<"globe" | "topology">("globe");
@@ -111,7 +113,7 @@ export function Dashboard() {
         if (!stopped) {
           setSnapshot(result.simulation);
             const selected = result.simulation.bundles.find((bundle) => bundle.bundle_id === selectedBundleId);
-            if (!selected || ["delivered", "expired", "rejected_at_source"].includes(selected.status)) {
+            if ((!selected || ["delivered", "expired", "rejected_at_source"].includes(selected.status)) && selectedBundleId !== historySelectedBundleId) {
               const liveBundles = result.simulation.bundles.filter((bundle) => !["delivered", "expired", "rejected_at_source"].includes(bundle.status));
               const newest = [...liveBundles].sort((a, b) => a.creation_time_us - b.creation_time_us || a.bundle_id.localeCompare(b.bundle_id)).at(-1);
               if (newest) setSelectedBundleId(newest.bundle_id);
@@ -123,7 +125,7 @@ export function Dashboard() {
       } finally { inFlight.current = false; }
     }, 120);
     return () => { stopped = true; window.clearInterval(timer); };
-  }, [simulationId, snapshot?.status, selectedBundleId, configuration.orbital_contact_generation, refreshMetrics]);
+  }, [simulationId, snapshot?.status, selectedBundleId, historySelectedBundleId, configuration.orbital_contact_generation, refreshMetrics]);
 
   const addManualSatellite = () => {
     const id = manualNodeId.trim();
@@ -184,6 +186,8 @@ export function Dashboard() {
     const created = await createSimulation(configuration, routingPolicy, seed, horizonSeconds * 1_000_000);
     const initial = await postControl(created.simulation_id, "start");
     setSnapshot(initial); setMetrics(null); setSelectedBundleId(configuration.bundles[0]?.bundle_id ?? null);
+    setHistorySelectedBundleId(null);
+    setTransferHistoryLimit(20);
     setFollowPacket(true);
     if (configuration.bundles[0]) setSelectedBundleId(configuration.bundles[0].bundle_id);
   });
@@ -213,6 +217,14 @@ export function Dashboard() {
     const source = snapshot?.nodes ?? configuration.nodes.map((node) => ({ ...node, buffer_occupancy_bytes: 0 }));
     return source.find((node) => node.node_id === selectedNodeId) ?? null;
   }, [snapshot, configuration.nodes, selectedNodeId]);
+  const runTransfers = useMemo(() => (snapshot?.bundles ?? [])
+    .flatMap((bundle) => bundle.forwarding_history.map((transfer) => ({
+      ...transfer,
+      bundle_id: bundle.bundle_id,
+    })))
+    .sort((a, b) => b.receiver_acceptance_us - a.receiver_acceptance_us
+      || a.bundle_id.localeCompare(b.bundle_id)
+      || a.contact_id.localeCompare(b.contact_id)), [snapshot?.bundles]);
   const selectedBundle: BundleState | null = useMemo(() =>
     snapshot?.bundles.find((bundle) => bundle.bundle_id === selectedBundleId) ??
     (configuration.bundles.find((bundle) => bundle.bundle_id === selectedBundleId)
@@ -382,6 +394,20 @@ export function Dashboard() {
             <InfoRow label="Queued bundles" value={String(snapshot?.bundles.filter((bundle) => bundle.status === "queued").length ?? 0)} />
             <InfoRow label="Delivered" value={String(metrics?.delivered_count ?? 0)} accent="green" />
             <InfoRow label="Expired" value={String(metrics?.expired_count ?? 0)} accent="red" />
+          </section>
+
+          <section className="panel transfer-history-panel">
+            <div className="panel-heading"><div className="heading-icon violet"><History size={15} /></div><h2>Run transfer history</h2><span className="transfer-count">{runTransfers.length} hops</span></div>
+            {!snapshot ? <p className="empty-copy">Transfers from this run will be recorded here.</p> : runTransfers.length === 0 ? <p className="empty-copy">No bundle transfers have completed in this run yet.</p> : <>
+              <div className="transfer-history-list" aria-label="Successful transfers in this simulation run">
+                {runTransfers.slice(0, transferHistoryLimit).map((transfer, index) => <button className="transfer-history-row" key={`${transfer.bundle_id}-${transfer.contact_id}-${transfer.receiver_acceptance_us}-${index}`} onClick={() => { setHistorySelectedBundleId(transfer.bundle_id); setSelectedBundleId(transfer.bundle_id); }} title={`Inspect ${transfer.bundle_id}`}>
+                  <span className="transfer-history-time">{seconds(transfer.receiver_acceptance_us)}</span>
+                  <span className="transfer-history-content"><b>{transfer.from_node} → {transfer.to_node}</b><small>{transfer.bundle_id} · {transfer.contact_id}</small></span>
+                </button>)}
+              </div>
+              {runTransfers.length > transferHistoryLimit && <button className="show-older-transfers" onClick={() => setTransferHistoryLimit((count) => Math.min(count + 20, runTransfers.length))}>Show older transfers ({runTransfers.length - transferHistoryLimit} remaining)</button>}
+              <p className="transfer-history-note">Successful hops are retained for the full run. Select a row to inspect that bundle’s complete path.</p>
+            </>}
           </section>
 
           <section className="panel node-info-panel">
