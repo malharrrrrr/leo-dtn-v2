@@ -71,6 +71,41 @@ def test_scenario_and_simulation_snapshot_are_read_only_projections(api_client):
     assert request(api_client, "GET", f"/simulations/{simulation_id}/nodes/missing").status_code == 404
 
 
+def test_scenario_catalog_exposes_all_presets_and_normalized_details(api_client):
+    catalog = request(api_client, "GET", "/scenarios")
+    assert catalog.status_code == 200
+    scenarios = {item["scenario_id"]: item for item in catalog.json()}
+    assert set(scenarios) == {
+        "leo-mumbai-new-york", "leo-sparse-constellation", "leo-limited-buffers",
+        "leo-high-traffic", "leo-expanded-constellation",
+    }
+    assert scenarios["leo-mumbai-new-york"]["satellite_count"] == 8
+    assert scenarios["leo-sparse-constellation"]["satellite_count"] == 4
+    assert scenarios["leo-expanded-constellation"]["satellite_count"] == 16
+    assert scenarios["leo-mumbai-new-york"]["orbital_contact_generation"] is True
+
+    for scenario_id, summary in scenarios.items():
+        details = request(api_client, "GET", f"/scenarios/{scenario_id}")
+        assert details.status_code == 200, details.text
+        payload = details.json()
+        assert payload["name"] == summary["name"]
+        assert len(payload["configuration"]["nodes"]) == summary["node_count"]
+        assert len(payload["configuration"]["bundles"]) == summary["bundle_count"]
+
+    config = request(api_client, "GET", "/scenarios/leo-mumbai-new-york").json()["configuration"]
+    assert config["bundle_generation_interval_us"] == 60_000_000
+    assert config["nodes"][1]["orbit"] == {
+        "altitude_km": 550, "inclination_deg": 53, "raan_deg": 59, "phase_deg": 22,
+    }
+
+    orbital_run = request(api_client, "POST", "/simulations", json_body={
+        "scenario_id": "leo-mumbai-new-york", "random_seed": 42, "horizon_us": 600_000_000,
+    })
+    assert orbital_run.status_code == 201, orbital_run.text
+    assert orbital_run.json()["node_count"] == 10
+    assert orbital_run.json()["contact_count"] > 0
+
+
 def test_run_controls_advance_only_on_command_and_reset_to_initial_state(api_client):
     simulation_id = create_run(api_client)
     assert request(api_client, "POST", f"/simulations/{simulation_id}/pause").status_code == 409

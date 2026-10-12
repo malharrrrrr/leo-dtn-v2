@@ -1,4 +1,4 @@
-import type { CreatedSimulation, Metrics, RoutingPolicy, SimulationConfig, SimulationSnapshot } from "./contracts";
+import type { CreatedSimulation, Metrics, PlaybackSpeed, RoutingPolicy, ScenarioDetails, ScenarioSummary, SimulationConfig, SimulationSnapshot } from "./contracts";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
@@ -22,14 +22,29 @@ export async function createSimulation(configuration: SimulationConfig, routingP
   });
 }
 
+export function getScenarios() {
+  return request<ScenarioSummary[]>("/scenarios");
+}
+
+export function getScenario(scenarioId: string) {
+  return request<ScenarioDetails>(`/scenarios/${encodeURIComponent(scenarioId)}`);
+}
+
 export function postControl(id: string, action: "start" | "pause" | "resume" | "step" | "reset") {
   return request<SimulationSnapshot>(`/simulations/${id}/${action}`, { method: "POST" });
+}
+
+export function setSimulationPlaybackSpeed(id: string, speed: PlaybackSpeed) {
+  return request<SimulationSnapshot>(`/simulations/${id}/playback-speed`, {
+    method: "POST",
+    body: JSON.stringify({ speed }),
+  });
 }
 
 export function advanceSimulation(id: string, targetTimeUs: number) {
   return request<{ simulation: SimulationSnapshot; events_processed: number; reached_target: boolean }>(
     `/simulations/${id}/advance`,
-    { method: "POST", body: JSON.stringify({ target_time_us: targetTimeUs, max_events: 2 }) },
+    { method: "POST", body: JSON.stringify({ target_time_us: targetTimeUs, max_events: 1_000 }) },
   );
 }
 

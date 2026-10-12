@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
-  Activity, AlertCircle, ChevronDown, CircleHelp, Globe2, Layers3, Link2, LoaderCircle,
+  Activity, AlertCircle, ChevronDown, CircleHelp, Globe2, History, Layers3, Link2, LoaderCircle,
   Pause, Play, Plus, RotateCcw, Satellite, SkipForward, Sparkles, Waypoints,
 } from "lucide-react";
-import { advanceSimulation, createSimulation, getMetrics, getSimulation, postControl } from "@/lib/api";
-import type { BundleConfig, BundleState, ContactConfig, Metrics, NodeConfig, RoutingPolicy, RunStatus, SimulationConfig, SimulationSnapshot } from "@/lib/contracts";
+import { advanceSimulation, createSimulation, getMetrics, getSimulation, postControl, setSimulationPlaybackSpeed } from "@/lib/api";
+import type { BundleConfig, BundleState, ContactConfig, Metrics, NodeConfig, PlaybackSpeed, RoutingPolicy, RunStatus, SimulationConfig, SimulationSnapshot } from "@/lib/contracts";
 import { NetworkScene } from "./network-scene";
 import { NetworkTopology } from "./network-topology";
+import { cloneScenarioConfiguration, ScenarioLibrary } from "./scenario-library";
 
 const EARTH_RADIUS_KM = 6371;
 const groundPosition = (latitude: number, longitude: number): [number, number, number] => {
@@ -54,8 +55,8 @@ function seededRandom(seed: number) {
   };
 }
 
-function IconButton({ title, onClick, children, active = false }: { title: string; onClick: () => void; children: ReactNode; active?: boolean }) {
-  return <button className={`icon-button ${active ? "active" : ""}`} title={title} aria-label={title} onClick={onClick}>{children}</button>;
+function IconButton({ title, onClick, children, active = false, disabled = false }: { title: string; onClick: () => void; children: ReactNode; active?: boolean; disabled?: boolean }) {
+  return <button className={`icon-button ${active ? "active" : ""}`} title={title} aria-label={title} onClick={onClick} disabled={disabled}>{children}</button>;
 }
 
 export function Dashboard() {
@@ -67,9 +68,15 @@ export function Dashboard() {
   const [snapshot, setSnapshot] = useState<SimulationSnapshot | null>(null);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [selectedBundleId, setSelectedBundleId] = useState<string | null>(INITIAL_CONFIG.bundles[0].bundle_id);
+  const [historySelectedBundleId, setHistorySelectedBundleId] = useState<string | null>(null);
+  const [transferBundleLimit, setTransferBundleLimit] = useState(12);
+  const [expandedTransferBundleIds, setExpandedTransferBundleIds] = useState<Set<string>>(new Set());
+  const [playbackSpeed, setPlaybackSpeed] = useState<PlaybackSpeed>(1);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [followPacket, setFollowPacket] = useState(true);
   const [viewMode, setViewMode] = useState<"globe" | "topology">("globe");
+  const [activeTab, setActiveTab] = useState<"simulation" | "scenarios">("simulation");
+  const [loadedScenarioName, setLoadedScenarioName] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inFlight = useRef(false);
@@ -104,11 +111,11 @@ export function Dashboard() {
       try {
         const result = configuration.orbital_contact_generation
           ? { simulation: await getSimulation(current.simulation_id) }
-          : await advanceSimulation(current.simulation_id, Math.min(current.time_us + 1_000_000, current.horizon_us));
+          : await advanceSimulation(current.simulation_id, Math.min(current.time_us + Math.round(1_000_000 * playbackSpeed), current.horizon_us));
         if (!stopped) {
           setSnapshot(result.simulation);
             const selected = result.simulation.bundles.find((bundle) => bundle.bundle_id === selectedBundleId);
-            if (!selected || ["delivered", "expired", "rejected_at_source"].includes(selected.status)) {
+            if ((!selected || ["delivered", "expired", "rejected_at_source"].includes(selected.status)) && selectedBundleId !== historySelectedBundleId) {
               const liveBundles = result.simulation.bundles.filter((bundle) => !["delivered", "expired", "rejected_at_source"].includes(bundle.status));
               const newest = [...liveBundles].sort((a, b) => a.creation_time_us - b.creation_time_us || a.bundle_id.localeCompare(b.bundle_id)).at(-1);
               if (newest) setSelectedBundleId(newest.bundle_id);
@@ -120,7 +127,7 @@ export function Dashboard() {
       } finally { inFlight.current = false; }
     }, 120);
     return () => { stopped = true; window.clearInterval(timer); };
-  }, [simulationId, snapshot?.status, selectedBundleId, configuration.orbital_contact_generation, refreshMetrics]);
+  }, [simulationId, snapshot?.status, selectedBundleId, historySelectedBundleId, configuration.orbital_contact_generation, playbackSpeed, refreshMetrics]);
 
   const addManualSatellite = () => {
     const id = manualNodeId.trim();
@@ -179,8 +186,13 @@ export function Dashboard() {
 
   const startNewSimulation = () => runAction(async () => {
     const created = await createSimulation(configuration, routingPolicy, seed, horizonSeconds * 1_000_000);
+    if (playbackSpeed !== 1) await setSimulationPlaybackSpeed(created.simulation_id, playbackSpeed);
     const initial = await postControl(created.simulation_id, "start");
     setSnapshot(initial); setMetrics(null); setSelectedBundleId(configuration.bundles[0]?.bundle_id ?? null);
+    setHistorySelectedBundleId(null);
+    setTransferBundleLimit(12);
+    setExpandedTransferBundleIds(new Set());
+    setPlaybackSpeed(initial.playback_speed);
     setFollowPacket(true);
     if (configuration.bundles[0]) setSelectedBundleId(configuration.bundles[0].bundle_id);
   });
@@ -190,7 +202,22 @@ export function Dashboard() {
     runAction(async () => {
       const latest = await postControl(snapshot.simulation_id, action);
       setSnapshot(latest);
+      if (action === "reset") {
+        setPlaybackSpeed(latest.playback_speed);
+        setHistorySelectedBundleId(null);
+        setExpandedTransferBundleIds(new Set());
+        setTransferBundleLimit(12);
+      }
       await refreshMetrics(snapshot.simulation_id);
+    });
+  };
+
+  const changePlaybackSpeed = (speed: PlaybackSpeed) => {
+    setPlaybackSpeed(speed);
+    if (!snapshot) return;
+    runAction(async () => {
+      const latest = await setSimulationPlaybackSpeed(snapshot.simulation_id, speed);
+      setSnapshot(latest);
     });
   };
 
@@ -210,6 +237,8 @@ export function Dashboard() {
     const source = snapshot?.nodes ?? configuration.nodes.map((node) => ({ ...node, buffer_occupancy_bytes: 0 }));
     return source.find((node) => node.node_id === selectedNodeId) ?? null;
   }, [snapshot, configuration.nodes, selectedNodeId]);
+  const transferBundles = useMemo(() => [...(snapshot?.bundles ?? [])]
+    .sort((a, b) => b.creation_time_us - a.creation_time_us || b.bundle_id.localeCompare(a.bundle_id)), [snapshot?.bundles]);
   const selectedBundle: BundleState | null = useMemo(() =>
     snapshot?.bundles.find((bundle) => bundle.bundle_id === selectedBundleId) ??
     (configuration.bundles.find((bundle) => bundle.bundle_id === selectedBundleId)
@@ -222,25 +251,43 @@ export function Dashboard() {
     ? "Chooses the next hop using the configured future contact plan."
     : "Chooses the route with the fewest configured hops; timing is still enforced by contacts.";
   const startDisabled = busy || status === "running" || !configuration.nodes.length;
+  const loadScenarioPreset = (scenario: { name: string; configuration: SimulationConfig }) => {
+    const nextConfiguration = cloneScenarioConfiguration(scenario.configuration);
+    setError(null);
+    setConfiguration(nextConfiguration);
+    setLoadedScenarioName(scenario.name);
+    setAdvanced({
+      ttlSeconds: Math.round((nextConfiguration.bundles[0]?.ttl_us ?? 21_600_000_000) / 1_000_000),
+      bundleSizeMb: (nextConfiguration.bundles[0]?.payload_bytes ?? 50_000_000) / 1_000_000,
+      bufferGb: Math.max(0, ...nextConfiguration.nodes.map((node) => node.buffer_capacity_bytes / 1_000_000_000)),
+      linkRateMbps: (nextConfiguration.orbital_link_rate_bits_per_second ?? nextConfiguration.contacts[0]?.rate_bits_per_second ?? 100_000_000) / 1_000_000,
+      trafficIntervalSeconds: (nextConfiguration.bundle_generation_interval_us ?? 60_000_000) / 1_000_000,
+    });
+    setHorizonSeconds(nextConfiguration.orbital_contact_generation
+      ? 600
+      : Math.max(1, Math.ceil(Math.max(0, ...nextConfiguration.contacts.map((contact) => contact.end_us)) / 1_000_000)));
+    setActiveTab("simulation");
+  };
 
   return (
     <main className="app-shell">
       <header className="topbar">
         <div className="brand"><div className="brand-mark"><Globe2 size={22} /></div><div><b>LEO-DTN</b><span>Satellite Network Simulator</span></div></div>
-        <nav className="top-nav"><button className="nav-item selected"><Play size={15} /> Simulation</button><button className="nav-item" disabled><Activity size={15} /> Experiments</button><button className="nav-item" disabled><Layers3 size={15} /> Scenarios</button></nav>
+        <nav className="top-nav"><button className={`nav-item ${activeTab === "simulation" ? "selected" : ""}`} onClick={() => setActiveTab("simulation")}><Play size={15} /> Simulation</button><button className="nav-item" disabled title="Experiment analysis is not implemented yet"><Activity size={15} /> Experiments</button><button className={`nav-item ${activeTab === "scenarios" ? "selected" : ""}`} onClick={() => setActiveTab("scenarios")}><Layers3 size={15} /> Scenarios</button></nav>
         <div className="status-chip"><span className={`status-dot ${status}`} /><div><b>{status === "ready" ? "Simulator Ready" : status[0].toUpperCase() + status.slice(1)}</b><small>t = {snapshot ? seconds(snapshot.time_us) : "0.00 s"}</small></div></div>
-        <button className="primary top-run" onClick={() => snapshot ? sendControl(status === "paused" ? "resume" : "start") : startNewSimulation()} disabled={busy || status === "running" || status === "completed"}>
-          {busy ? <LoaderCircle className="spin" size={16} /> : status === "running" ? <Activity size={16} /> : <Play size={16} />}
-          {snapshot ? status === "paused" ? "Resume" : status === "running" ? "Running" : "Run Simulation" : "Run Simulation"}
+        <button className="primary top-run" onClick={() => activeTab === "scenarios" ? setActiveTab("simulation") : snapshot ? sendControl(status === "paused" ? "resume" : "start") : startNewSimulation()} disabled={activeTab === "simulation" && (busy || status === "running" || status === "completed" || status === "failed")}>
+          {activeTab === "scenarios" ? <Play size={16} /> : busy ? <LoaderCircle className="spin" size={16} /> : status === "running" ? <Activity size={16} /> : <Play size={16} />}
+          {activeTab === "scenarios" ? "Back to simulation" : snapshot ? status === "paused" ? "Resume" : status === "running" ? "Running" : "Run Simulation" : "Run Simulation"}
         </button>
       </header>
 
-      <div className="dashboard-grid">
+      {activeTab === "scenarios" ? <ScenarioLibrary canLoadPreset={status !== "running"} onLoadPreset={loadScenarioPreset} /> : <div className="dashboard-grid">
         <aside className="left-column">
           <section className="panel setup-panel">
             <div className="panel-heading"><div className="heading-icon blue"><Waypoints size={16} /></div><h2>Simulation setup</h2><span className="section-tag">CONFIG</span></div>
             <label className="field-label">Scenario</label>
-            <select className="select-control" value="custom" onChange={() => undefined}><option value="custom">Custom LEO network</option></select>
+            <button className="select-control scenario-picker-button" onClick={() => setActiveTab("scenarios")}><span>{loadedScenarioName ?? "Custom LEO network"}</span><Layers3 size={14} /></button>
+            <p className="algorithm-copy">{loadedScenarioName ? "Preset loaded. Changes apply to the next simulation run." : "Build a custom network here or choose a preset scenario."}</p>
             <label className="field-label">Routing algorithm</label>
             <select className="select-control" value={routingPolicy} onChange={(event) => setRoutingPolicy(event.target.value as RoutingPolicy)}>
               <option value="contact_aware_earliest_arrival">Contact-aware earliest arrival</option>
@@ -252,9 +299,9 @@ export function Dashboard() {
             {configuration.orbital_contact_generation && <p className="algorithm-copy">The plan expands through bundle TTL so routing can compare full paths before a contact passes.</p>}
             <button className="primary full-width" onClick={startNewSimulation} disabled={startDisabled}><Play size={15} /> Create and run</button>
             <div className="control-row">
-              <IconButton title="Pause simulation" onClick={() => sendControl("pause")} active={status === "running"}><Pause size={16} /></IconButton>
-              <IconButton title="Step one simulation event" onClick={() => sendControl("step")}><SkipForward size={16} /></IconButton>
-              <IconButton title="Reset simulation" onClick={() => sendControl("reset")}><RotateCcw size={16} /></IconButton>
+              <IconButton title={status === "running" ? "Pause simulation" : status === "paused" ? "Resume simulation" : "Start simulation"} onClick={() => sendControl(status === "running" ? "pause" : status === "paused" ? "resume" : "start")} active={status === "running"} disabled={!snapshot || busy || status === "completed" || status === "failed"}>{status === "running" ? <Pause size={16} /> : <Play size={16} />}</IconButton>
+              <IconButton title="Step one simulation event" onClick={() => sendControl("step")} disabled={!snapshot || busy || status === "running" || status === "completed" || status === "failed"}><SkipForward size={16} /></IconButton>
+              <IconButton title="Reset simulation" onClick={() => sendControl("reset")} disabled={!snapshot || busy}><RotateCcw size={16} /></IconButton>
               <span className="control-hint">{snapshot ? `${snapshot.events.length} recorded events` : "No active run"}</span>
             </div>
           </section>
@@ -334,8 +381,13 @@ export function Dashboard() {
             {error && <div className="error-banner"><AlertCircle size={15} />{error}<button onClick={() => setError(null)}>×</button></div>}
           </div>
           <div className="playback-bar">
-            <div className="playback-actions"><IconButton title="Pause" onClick={() => sendControl("pause")} active={status === "running"}><Pause size={17} /></IconButton><IconButton title="Step one event" onClick={() => sendControl("step")}><SkipForward size={17} /></IconButton><IconButton title="Reset" onClick={() => sendControl("reset")}><RotateCcw size={16} /></IconButton></div>
+            <div className="playback-actions">
+              <IconButton title={status === "running" ? "Pause simulation" : status === "paused" ? "Resume simulation" : "Start simulation"} onClick={() => sendControl(status === "running" ? "pause" : status === "paused" ? "resume" : "start")} active={status === "running"} disabled={!snapshot || busy || status === "completed" || status === "failed"}>{status === "running" ? <Pause size={17} /> : <Play size={17} />}</IconButton>
+              <IconButton title="Step one simulation event" onClick={() => sendControl("step")} disabled={!snapshot || busy || status === "running" || status === "completed" || status === "failed"}><SkipForward size={17} /></IconButton>
+              <IconButton title="Reset simulation" onClick={() => sendControl("reset")} disabled={!snapshot || busy}><RotateCcw size={16} /></IconButton>
+            </div>
             <div className="timeline"><div className="time-label"><b>t = {snapshot ? seconds(snapshot.time_us) : "0.00 s"}</b><span>{snapshot ? configuration.orbital_contact_generation ? `Live · contacts planned to ${seconds(snapshot.horizon_us)}` : `/ ${seconds(snapshot.horizon_us)}` : "No run"}</span></div><div className="timeline-track"><div className="timeline-progress" style={{ width: `${snapshot ? Math.min(100, (snapshot.time_us / snapshot.horizon_us) * 100) : 0}%` }} /><span className="timeline-thumb" style={{ left: `${snapshot ? Math.min(100, (snapshot.time_us / snapshot.horizon_us) * 100) : 0}%` }} /></div></div>
+            <label className="playback-speed"><span>Speed</span><select aria-label="Simulation playback speed" value={playbackSpeed} onChange={(event) => changePlaybackSpeed(Number(event.target.value) as PlaybackSpeed)} disabled={busy}><option value={0.25}>0.25×</option><option value={0.5}>0.5×</option><option value={1}>1×</option><option value={2}>2×</option><option value={4}>4×</option></select></label>
             <button className={`follow-button ${followPacket ? "enabled" : ""}`} onClick={() => setFollowPacket((value) => !value)} disabled={!selectedBundleId || viewMode !== "globe"} title={viewMode === "globe" ? "Keep the selected bundle centered in the 3D view" : "Packet-follow is available in the 3D globe view"}><Sparkles size={14} /> {followPacket ? "Following bundle" : "Follow bundle"}</button>
           </div>
           <div className="summary-strip"><Metric label="Delivered" value={metrics ? `${metrics.delivered_count}/${metrics.generated_count}` : "—"} tone="green" /><Metric label="Delivery ratio" value={metrics?.delivery_ratio == null ? "—" : `${(metrics.delivery_ratio * 100).toFixed(1)}%`} tone="blue" /><Metric label="Mean latency" value={metrics?.mean_delivery_latency_us == null ? "—" : seconds(metrics.mean_delivery_latency_us)} tone="cyan" /><Metric label="Contact use" value={metrics?.contact_utilization_fraction == null ? "—" : `${(metrics.contact_utilization_fraction * 100).toFixed(1)}%`} tone="purple" /></div>
@@ -363,6 +415,37 @@ export function Dashboard() {
             <InfoRow label="Expired" value={String(metrics?.expired_count ?? 0)} accent="red" />
           </section>
 
+          <section className="panel transfer-history-panel">
+            <div className="panel-heading"><div className="heading-icon violet"><History size={15} /></div><h2>Transfers by bundle</h2><span className="transfer-count">{transferBundles.length} bundles</span></div>
+            {!snapshot ? <p className="empty-copy">Transfers from this run will be recorded here.</p> : transferBundles.length === 0 ? <p className="empty-copy">No bundles have been generated in this run yet.</p> : <>
+              <div className="transfer-history-list" aria-label="Bundle transfer history for this simulation run">
+                {transferBundles.slice(0, transferBundleLimit).map((bundle) => <details className="transfer-bundle-group" key={bundle.bundle_id} open={expandedTransferBundleIds.has(bundle.bundle_id)} onToggle={(event) => {
+                  const isOpen = event.currentTarget.open;
+                  setExpandedTransferBundleIds((current) => {
+                    const next = new Set(current);
+                    if (isOpen) next.add(bundle.bundle_id); else next.delete(bundle.bundle_id);
+                    return next;
+                  });
+                }}>
+                  <summary className="transfer-bundle-summary" onClick={() => { setHistorySelectedBundleId(bundle.bundle_id); setSelectedBundleId(bundle.bundle_id); }}>
+                    <span className={`bundle-status ${bundle.status}`} />
+                    <span className="transfer-bundle-heading"><b>{bundle.bundle_id}</b><small>{bundle.source} → {bundle.destination}</small></span>
+                    <span className={`transfer-bundle-status ${bundle.status}`}>{bundle.status.replaceAll("_", " ")}</span>
+                    <span className="transfer-bundle-count">{bundle.forwarding_history.length} hops</span>
+                  </summary>
+                  <div className="transfer-bundle-hops">
+                    {bundle.forwarding_history.length ? bundle.forwarding_history.map((hop, index) => <button className="transfer-history-row" key={`${hop.contact_id}-${hop.receiver_acceptance_us}-${index}`} onClick={() => { setHistorySelectedBundleId(bundle.bundle_id); setSelectedBundleId(bundle.bundle_id); }}>
+                      <span className="transfer-history-time">{seconds(hop.receiver_acceptance_us)}</span>
+                      <span className="transfer-history-content"><b>{hop.from_node} → {hop.to_node}</b><small>{hop.contact_id}</small></span>
+                    </button>) : <p className="empty-copy">No successful hops recorded yet.</p>}
+                  </div>
+                </details>)}
+              </div>
+              {transferBundles.length > transferBundleLimit && <button className="show-older-transfers" onClick={() => setTransferBundleLimit((count) => Math.min(count + 12, transferBundles.length))}>Show older bundles ({transferBundles.length - transferBundleLimit} remaining)</button>}
+              <p className="transfer-history-note">Each bundle keeps its successful hops for this run. Select a bundle or hop to inspect its path.</p>
+            </>}
+          </section>
+
           <section className="panel node-info-panel">
             <div className="panel-heading"><div className="heading-icon blue"><Satellite size={15} /></div><h2>Selected node</h2><ChevronDown size={15} className="muted-icon" /></div>
             {activeNode ? <>
@@ -374,7 +457,7 @@ export function Dashboard() {
           </section>
           <div className="data-note"><i /> Positions, line-of-sight windows, transfers, and paths come from the engine. Circular-orbit geometry is simplified and is not an operational prediction.</div>
         </aside>
-      </div>
+      </div>}
     </main>
   );
 }

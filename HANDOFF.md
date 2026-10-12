@@ -1,6 +1,7 @@
 # LEO-DTN agent handoff
 
-**Last reviewed:** 2026-10-10  
+**Last reviewed:** 2026-10-12
+
 **Purpose:** Give a new agent enough context to navigate the repository, run it safely, and continue work without losing local changes or confusing modeled behavior with real system behavior.
 
 ## Start here
@@ -42,6 +43,7 @@ This is not a real satellite communications system. Satellite motion is currentl
 | `backend/tests/` | Engine, metrics, orbit, experiment, and API tests |
 | `frontend/src/app/page.tsx` | Next.js entry route (`/`) |
 | `frontend/src/components/dashboard.tsx` | Configuration, controls, polling, panels, selected run state |
+| `frontend/src/components/scenario-library.tsx` | API-backed scenario preset catalog and detail view |
 | `frontend/src/components/network-scene.tsx` | Three.js globe, nodes, contacts, orbit trails, selected bundle |
 | `frontend/src/components/network-topology.tsx` | SVG topology view |
 | `frontend/src/lib/api.ts` | Frontend REST calls |
@@ -61,7 +63,10 @@ This is not a real satellite communications system. Satellite motion is currentl
 - Orbital contact generation plans initially through the latest configured bundle expiry, even when the requested minimum horizon is shorter. During playback it maintains at least the maximum configured bundle TTL ahead of simulation time, extending deterministically in one-hour batches (with a 120-second minimum for short/no-TTL scenarios). This lets contact-aware earliest-arrival routing compare contacts through a bundle's expiry before missing earlier first hops. The regression uses the default Mumbai/New York constellation and verifies BND-001 starts via SAT-01 at t=2s with a 600-second requested minimum. Geometry sampling can still miss short windows; route estimates also ignore future contention and admission failures.
 - Configured bundles repeat at `bundle_generation_interval_us`; the dashboard default is one bundle every 60 simulated seconds. Each repeat has a deterministic ID and ordinary buffer, route, TTL, and metric behavior; the rolling plan stays ahead by the template TTL.
 - Contact starts now wake queued bundles for a routing reevaluation. This matters for contacts added by rolling plan extension; without that wake-up a bundle could remain buffered after its new contact became active. The dashboard's default bundle TTL is six hours so it can survive longer store-carry-forward waits between distant ground stations.
+- Successful forwarding records remain on each bundle in every engine snapshot. The dashboard groups transfer hops under individual bundles, keeps earlier bundles visible as new traffic moves, and lets each bundle/hop select that bundle for full path inspection. The bundle list starts with the latest 12 and reveals older bundles in pages of 12.
+- Playback controls include state-aware play/pause, one-event stepping, reset, and 0.25×/0.5×/1×/2×/4× pacing. The API-owned orbital playback uses the selected pace; explicit-contact runs advance by a speed-scaled simulated-time increment. Playback speed is adapter pacing, not engine time logic, and reset restores 1×.
 - Dashboard defaults now place the ground stations in Mumbai and New York so a long relay path is more visible. The source default is Mumbai and destination is New York.
+- The Scenarios tab exposes five variants of the default moving Mumbai–New York LEO setup: baseline, four-satellite sparse constellation, limited satellite buffers, higher bundle load, and expanded 16-satellite constellation. The orbital presets share the default endpoint, orbit model, and recurring traffic unless that factor is the experiment being varied. The fixed-contact relay vertical slice remains a backend verification fixture and is not shown as an orbital preset. “Use this preset” loads its API-returned configuration for the next run without starting or changing the active engine.
 
 ## Run and verify locally
 
@@ -97,11 +102,13 @@ On Unix, use `backend/.venv/bin/python`. Do not make engine tests depend on runn
 - The dashboard has a configurable constellation, seeded satellite placement, a Three.js globe, topology view, playback controls, bundle/node/network panels, and engine-state polling. The default minimum contact-plan horizon is 600 seconds; orbital sessions extend actual planned coverage through bundle TTL.
 - Recent frontend terminal fixes: trails are drawn only after at least two samples (avoids Three.js empty-geometry warnings); Next dev origin allows `127.0.0.1`. Restart the dev server to load that Next config.
 - A logged `GET /analysis 404` is expected until an analysis route is deliberately implemented. It does not prevent the `/` dashboard from running.
-- Latest verification: `backend/.venv/Scripts/python.exe -m pytest -c backend/pyproject.toml -q backend/tests` passed (44 tests; local Uvicorn tests require local socket access). From `frontend/`, `npm run typecheck`, `npm run lint`, and `npm run build` passed. A sandboxed build hit Windows path canonicalization permissions; the same build passed with filesystem access.
+- Latest verification: `backend/.venv/Scripts/python.exe -m pytest -c backend/pyproject.toml -q` passed (50 tests; local Uvicorn tests require local socket access). From `frontend/`, `npm run typecheck`, `npm run lint`, and `npm run build` passed. A sandboxed build hit Windows path canonicalization permissions; the same build passed with filesystem access.
+- Latest grouped-history/playback verification: from `frontend/`, `npm run typecheck` and `npm run lint` passed; `backend/.venv/Scripts/python.exe -c "import sys; sys.path.insert(0, 'backend'); from leo_dtn.api import app"` imported the API models/routes successfully. The venv prints `Failed to find real location of C:\Python314\python.exe` before continuing, even though the import succeeds; do not fall back to system Python. No pytest suite was run in this prompt.
+- Current working branch is `feat/scnearios`. Preserve the pre-existing local `frontend/next-env.d.ts` change (`.next/dev/types` imports); it is unrelated to scenario presets and must not be included in their commit.
 - The working roadmap says circular-orbit/contact behavior is implemented but still needs long-run and interactive validation. Do not mark those milestones complete based only on compilation.
 
 ## Suggested next task
 
-Launch the API and dashboard, open `/`, and verify a long-running orbital session: satellite motion and contact windows continue beyond the initial plan, recurring bundles appear every configured interval, bundles wait at relays and resume on real contacts, and packet-follow keeps the selected bundle in view. Pause and verify both motion and bundle generation stop; close the dashboard and verify the API session still advances; stop the API and verify its in-memory run is lost. Inspect the distant Mumbai-to-New-York path for an actual multi-hop delivery. Record any reproducible failure and fix it at the layer that owns the behavior. Keep `/analysis` explicitly deferred unless experiment analysis is chosen as the next product task.
+Launch the API and dashboard, open `/`, and verify transfers stay grouped by bundle as new bundles move and the selected bundle path remains inspectable. Verify play/pause, one-event step, reset, and each speed option; confirm speed changes playback pace while identical engine inputs still use the same simulation rules. Then verify all five Scenarios presets load their configuration and can create a run. Continue long-run orbital validation: motion and contact windows continue beyond the initial plan, recurring bundles appear at the configured interval, bundles wait at relays and resume on contacts, and packet-follow keeps the selected bundle in view. Keep `/analysis` explicitly deferred unless experiment analysis is chosen as the next product task.
 
 After substantial work, update this file’s current state, verification results, and suggested next task so another agent can resume without reconstructing the entire conversation.
