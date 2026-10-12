@@ -20,6 +20,7 @@ from .api_models import (
     EventResponse,
     MetricsResponse,
     NodeResponse,
+    PlaybackSpeedRequest,
     RunCreatedResponse,
     ScenarioResponse,
     ScenarioSummary,
@@ -79,7 +80,7 @@ def create_app(manager: SimulationManager | None = None) -> FastAPI:
                             if session.status != "running":
                                 return True
                             session.advance(
-                                target_time_us=session.engine.time_us + 1_000_000,
+                                target_time_us=session.engine.time_us + round(1_000_000 * session.playback_speed),
                                 max_events=10_000,
                             )
                             return True
@@ -195,6 +196,15 @@ def create_app(manager: SimulationManager | None = None) -> FastAPI:
     def step_simulation(simulation_id: str):
         session = get_session(simulation_id)
         translate_transition(session.step)
+        return _snapshot(session)
+
+    @app.post("/simulations/{simulation_id}/playback-speed", response_model=SimulationSnapshotResponse)
+    def set_playback_speed(simulation_id: str, request: PlaybackSpeedRequest):
+        session = get_session(simulation_id)
+        try:
+            session.set_playback_speed(request.speed)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
         return _snapshot(session)
 
     @app.post("/simulations/{simulation_id}/advance", response_model=AdvanceResponse)
@@ -317,6 +327,7 @@ def _status(session: SimulationSession, response_type=SimulationStatusResponse, 
             status=session.status,
             simulated_time_us=session.engine.time_us,
             horizon_us=session.horizon_us,
+            playback_speed=session.playback_speed,
             random_seed=session.random_seed,
             routing_policy=session.routing_policy_name,
             node_count=len(session.configuration.nodes),
@@ -357,7 +368,8 @@ def _snapshot_locked(session: SimulationSession) -> SimulationSnapshotResponse:
         ))
     return SimulationSnapshotResponse(
         simulation_id=session.simulation_id, status=session.status, time_us=time_us,
-        horizon_us=session.horizon_us, routing_policy=snapshot.routing_policy,
+        horizon_us=session.horizon_us, playback_speed=session.playback_speed,
+        routing_policy=snapshot.routing_policy,
         nodes=tuple(NodeResponse(
             node_id=item.node.node_id, kind=item.node.kind,
             buffer_capacity_bytes=item.node.buffer_capacity_bytes,

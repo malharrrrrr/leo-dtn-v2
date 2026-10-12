@@ -5,8 +5,8 @@ import {
   Activity, AlertCircle, ChevronDown, CircleHelp, Globe2, History, Layers3, Link2, LoaderCircle,
   Pause, Play, Plus, RotateCcw, Satellite, SkipForward, Sparkles, Waypoints,
 } from "lucide-react";
-import { advanceSimulation, createSimulation, getMetrics, getSimulation, postControl } from "@/lib/api";
-import type { BundleConfig, BundleState, ContactConfig, Metrics, NodeConfig, RoutingPolicy, RunStatus, SimulationConfig, SimulationSnapshot } from "@/lib/contracts";
+import { advanceSimulation, createSimulation, getMetrics, getSimulation, postControl, setSimulationPlaybackSpeed } from "@/lib/api";
+import type { BundleConfig, BundleState, ContactConfig, Metrics, NodeConfig, PlaybackSpeed, RoutingPolicy, RunStatus, SimulationConfig, SimulationSnapshot } from "@/lib/contracts";
 import { NetworkScene } from "./network-scene";
 import { NetworkTopology } from "./network-topology";
 import { cloneScenarioConfiguration, ScenarioLibrary } from "./scenario-library";
@@ -55,8 +55,8 @@ function seededRandom(seed: number) {
   };
 }
 
-function IconButton({ title, onClick, children, active = false }: { title: string; onClick: () => void; children: ReactNode; active?: boolean }) {
-  return <button className={`icon-button ${active ? "active" : ""}`} title={title} aria-label={title} onClick={onClick}>{children}</button>;
+function IconButton({ title, onClick, children, active = false, disabled = false }: { title: string; onClick: () => void; children: ReactNode; active?: boolean; disabled?: boolean }) {
+  return <button className={`icon-button ${active ? "active" : ""}`} title={title} aria-label={title} onClick={onClick} disabled={disabled}>{children}</button>;
 }
 
 export function Dashboard() {
@@ -69,7 +69,9 @@ export function Dashboard() {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [selectedBundleId, setSelectedBundleId] = useState<string | null>(INITIAL_CONFIG.bundles[0].bundle_id);
   const [historySelectedBundleId, setHistorySelectedBundleId] = useState<string | null>(null);
-  const [transferHistoryLimit, setTransferHistoryLimit] = useState(20);
+  const [transferBundleLimit, setTransferBundleLimit] = useState(12);
+  const [expandedTransferBundleIds, setExpandedTransferBundleIds] = useState<Set<string>>(new Set());
+  const [playbackSpeed, setPlaybackSpeed] = useState<PlaybackSpeed>(1);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [followPacket, setFollowPacket] = useState(true);
   const [viewMode, setViewMode] = useState<"globe" | "topology">("globe");
@@ -109,7 +111,7 @@ export function Dashboard() {
       try {
         const result = configuration.orbital_contact_generation
           ? { simulation: await getSimulation(current.simulation_id) }
-          : await advanceSimulation(current.simulation_id, Math.min(current.time_us + 1_000_000, current.horizon_us));
+          : await advanceSimulation(current.simulation_id, Math.min(current.time_us + Math.round(1_000_000 * playbackSpeed), current.horizon_us));
         if (!stopped) {
           setSnapshot(result.simulation);
             const selected = result.simulation.bundles.find((bundle) => bundle.bundle_id === selectedBundleId);
@@ -125,7 +127,7 @@ export function Dashboard() {
       } finally { inFlight.current = false; }
     }, 120);
     return () => { stopped = true; window.clearInterval(timer); };
-  }, [simulationId, snapshot?.status, selectedBundleId, historySelectedBundleId, configuration.orbital_contact_generation, refreshMetrics]);
+  }, [simulationId, snapshot?.status, selectedBundleId, historySelectedBundleId, configuration.orbital_contact_generation, playbackSpeed, refreshMetrics]);
 
   const addManualSatellite = () => {
     const id = manualNodeId.trim();
@@ -184,10 +186,13 @@ export function Dashboard() {
 
   const startNewSimulation = () => runAction(async () => {
     const created = await createSimulation(configuration, routingPolicy, seed, horizonSeconds * 1_000_000);
+    if (playbackSpeed !== 1) await setSimulationPlaybackSpeed(created.simulation_id, playbackSpeed);
     const initial = await postControl(created.simulation_id, "start");
     setSnapshot(initial); setMetrics(null); setSelectedBundleId(configuration.bundles[0]?.bundle_id ?? null);
     setHistorySelectedBundleId(null);
-    setTransferHistoryLimit(20);
+    setTransferBundleLimit(12);
+    setExpandedTransferBundleIds(new Set());
+    setPlaybackSpeed(initial.playback_speed);
     setFollowPacket(true);
     if (configuration.bundles[0]) setSelectedBundleId(configuration.bundles[0].bundle_id);
   });
@@ -197,7 +202,22 @@ export function Dashboard() {
     runAction(async () => {
       const latest = await postControl(snapshot.simulation_id, action);
       setSnapshot(latest);
+      if (action === "reset") {
+        setPlaybackSpeed(latest.playback_speed);
+        setHistorySelectedBundleId(null);
+        setExpandedTransferBundleIds(new Set());
+        setTransferBundleLimit(12);
+      }
       await refreshMetrics(snapshot.simulation_id);
+    });
+  };
+
+  const changePlaybackSpeed = (speed: PlaybackSpeed) => {
+    setPlaybackSpeed(speed);
+    if (!snapshot) return;
+    runAction(async () => {
+      const latest = await setSimulationPlaybackSpeed(snapshot.simulation_id, speed);
+      setSnapshot(latest);
     });
   };
 
@@ -217,14 +237,8 @@ export function Dashboard() {
     const source = snapshot?.nodes ?? configuration.nodes.map((node) => ({ ...node, buffer_occupancy_bytes: 0 }));
     return source.find((node) => node.node_id === selectedNodeId) ?? null;
   }, [snapshot, configuration.nodes, selectedNodeId]);
-  const runTransfers = useMemo(() => (snapshot?.bundles ?? [])
-    .flatMap((bundle) => bundle.forwarding_history.map((transfer) => ({
-      ...transfer,
-      bundle_id: bundle.bundle_id,
-    })))
-    .sort((a, b) => b.receiver_acceptance_us - a.receiver_acceptance_us
-      || a.bundle_id.localeCompare(b.bundle_id)
-      || a.contact_id.localeCompare(b.contact_id)), [snapshot?.bundles]);
+  const transferBundles = useMemo(() => [...(snapshot?.bundles ?? [])]
+    .sort((a, b) => b.creation_time_us - a.creation_time_us || b.bundle_id.localeCompare(a.bundle_id)), [snapshot?.bundles]);
   const selectedBundle: BundleState | null = useMemo(() =>
     snapshot?.bundles.find((bundle) => bundle.bundle_id === selectedBundleId) ??
     (configuration.bundles.find((bundle) => bundle.bundle_id === selectedBundleId)
@@ -261,7 +275,7 @@ export function Dashboard() {
         <div className="brand"><div className="brand-mark"><Globe2 size={22} /></div><div><b>LEO-DTN</b><span>Satellite Network Simulator</span></div></div>
         <nav className="top-nav"><button className={`nav-item ${activeTab === "simulation" ? "selected" : ""}`} onClick={() => setActiveTab("simulation")}><Play size={15} /> Simulation</button><button className="nav-item" disabled title="Experiment analysis is not implemented yet"><Activity size={15} /> Experiments</button><button className={`nav-item ${activeTab === "scenarios" ? "selected" : ""}`} onClick={() => setActiveTab("scenarios")}><Layers3 size={15} /> Scenarios</button></nav>
         <div className="status-chip"><span className={`status-dot ${status}`} /><div><b>{status === "ready" ? "Simulator Ready" : status[0].toUpperCase() + status.slice(1)}</b><small>t = {snapshot ? seconds(snapshot.time_us) : "0.00 s"}</small></div></div>
-        <button className="primary top-run" onClick={() => activeTab === "scenarios" ? setActiveTab("simulation") : snapshot ? sendControl(status === "paused" ? "resume" : "start") : startNewSimulation()} disabled={activeTab === "simulation" && (busy || status === "running" || status === "completed")}>
+        <button className="primary top-run" onClick={() => activeTab === "scenarios" ? setActiveTab("simulation") : snapshot ? sendControl(status === "paused" ? "resume" : "start") : startNewSimulation()} disabled={activeTab === "simulation" && (busy || status === "running" || status === "completed" || status === "failed")}>
           {activeTab === "scenarios" ? <Play size={16} /> : busy ? <LoaderCircle className="spin" size={16} /> : status === "running" ? <Activity size={16} /> : <Play size={16} />}
           {activeTab === "scenarios" ? "Back to simulation" : snapshot ? status === "paused" ? "Resume" : status === "running" ? "Running" : "Run Simulation" : "Run Simulation"}
         </button>
@@ -285,9 +299,9 @@ export function Dashboard() {
             {configuration.orbital_contact_generation && <p className="algorithm-copy">The plan expands through bundle TTL so routing can compare full paths before a contact passes.</p>}
             <button className="primary full-width" onClick={startNewSimulation} disabled={startDisabled}><Play size={15} /> Create and run</button>
             <div className="control-row">
-              <IconButton title="Pause simulation" onClick={() => sendControl("pause")} active={status === "running"}><Pause size={16} /></IconButton>
-              <IconButton title="Step one simulation event" onClick={() => sendControl("step")}><SkipForward size={16} /></IconButton>
-              <IconButton title="Reset simulation" onClick={() => sendControl("reset")}><RotateCcw size={16} /></IconButton>
+              <IconButton title={status === "running" ? "Pause simulation" : status === "paused" ? "Resume simulation" : "Start simulation"} onClick={() => sendControl(status === "running" ? "pause" : status === "paused" ? "resume" : "start")} active={status === "running"} disabled={!snapshot || busy || status === "completed" || status === "failed"}>{status === "running" ? <Pause size={16} /> : <Play size={16} />}</IconButton>
+              <IconButton title="Step one simulation event" onClick={() => sendControl("step")} disabled={!snapshot || busy || status === "running" || status === "completed" || status === "failed"}><SkipForward size={16} /></IconButton>
+              <IconButton title="Reset simulation" onClick={() => sendControl("reset")} disabled={!snapshot || busy}><RotateCcw size={16} /></IconButton>
               <span className="control-hint">{snapshot ? `${snapshot.events.length} recorded events` : "No active run"}</span>
             </div>
           </section>
@@ -367,8 +381,13 @@ export function Dashboard() {
             {error && <div className="error-banner"><AlertCircle size={15} />{error}<button onClick={() => setError(null)}>×</button></div>}
           </div>
           <div className="playback-bar">
-            <div className="playback-actions"><IconButton title="Pause" onClick={() => sendControl("pause")} active={status === "running"}><Pause size={17} /></IconButton><IconButton title="Step one event" onClick={() => sendControl("step")}><SkipForward size={17} /></IconButton><IconButton title="Reset" onClick={() => sendControl("reset")}><RotateCcw size={16} /></IconButton></div>
+            <div className="playback-actions">
+              <IconButton title={status === "running" ? "Pause simulation" : status === "paused" ? "Resume simulation" : "Start simulation"} onClick={() => sendControl(status === "running" ? "pause" : status === "paused" ? "resume" : "start")} active={status === "running"} disabled={!snapshot || busy || status === "completed" || status === "failed"}>{status === "running" ? <Pause size={17} /> : <Play size={17} />}</IconButton>
+              <IconButton title="Step one simulation event" onClick={() => sendControl("step")} disabled={!snapshot || busy || status === "running" || status === "completed" || status === "failed"}><SkipForward size={17} /></IconButton>
+              <IconButton title="Reset simulation" onClick={() => sendControl("reset")} disabled={!snapshot || busy}><RotateCcw size={16} /></IconButton>
+            </div>
             <div className="timeline"><div className="time-label"><b>t = {snapshot ? seconds(snapshot.time_us) : "0.00 s"}</b><span>{snapshot ? configuration.orbital_contact_generation ? `Live · contacts planned to ${seconds(snapshot.horizon_us)}` : `/ ${seconds(snapshot.horizon_us)}` : "No run"}</span></div><div className="timeline-track"><div className="timeline-progress" style={{ width: `${snapshot ? Math.min(100, (snapshot.time_us / snapshot.horizon_us) * 100) : 0}%` }} /><span className="timeline-thumb" style={{ left: `${snapshot ? Math.min(100, (snapshot.time_us / snapshot.horizon_us) * 100) : 0}%` }} /></div></div>
+            <label className="playback-speed"><span>Speed</span><select aria-label="Simulation playback speed" value={playbackSpeed} onChange={(event) => changePlaybackSpeed(Number(event.target.value) as PlaybackSpeed)} disabled={busy}><option value={0.25}>0.25×</option><option value={0.5}>0.5×</option><option value={1}>1×</option><option value={2}>2×</option><option value={4}>4×</option></select></label>
             <button className={`follow-button ${followPacket ? "enabled" : ""}`} onClick={() => setFollowPacket((value) => !value)} disabled={!selectedBundleId || viewMode !== "globe"} title={viewMode === "globe" ? "Keep the selected bundle centered in the 3D view" : "Packet-follow is available in the 3D globe view"}><Sparkles size={14} /> {followPacket ? "Following bundle" : "Follow bundle"}</button>
           </div>
           <div className="summary-strip"><Metric label="Delivered" value={metrics ? `${metrics.delivered_count}/${metrics.generated_count}` : "—"} tone="green" /><Metric label="Delivery ratio" value={metrics?.delivery_ratio == null ? "—" : `${(metrics.delivery_ratio * 100).toFixed(1)}%`} tone="blue" /><Metric label="Mean latency" value={metrics?.mean_delivery_latency_us == null ? "—" : seconds(metrics.mean_delivery_latency_us)} tone="cyan" /><Metric label="Contact use" value={metrics?.contact_utilization_fraction == null ? "—" : `${(metrics.contact_utilization_fraction * 100).toFixed(1)}%`} tone="purple" /></div>
@@ -397,16 +416,33 @@ export function Dashboard() {
           </section>
 
           <section className="panel transfer-history-panel">
-            <div className="panel-heading"><div className="heading-icon violet"><History size={15} /></div><h2>Run transfer history</h2><span className="transfer-count">{runTransfers.length} hops</span></div>
-            {!snapshot ? <p className="empty-copy">Transfers from this run will be recorded here.</p> : runTransfers.length === 0 ? <p className="empty-copy">No bundle transfers have completed in this run yet.</p> : <>
-              <div className="transfer-history-list" aria-label="Successful transfers in this simulation run">
-                {runTransfers.slice(0, transferHistoryLimit).map((transfer, index) => <button className="transfer-history-row" key={`${transfer.bundle_id}-${transfer.contact_id}-${transfer.receiver_acceptance_us}-${index}`} onClick={() => { setHistorySelectedBundleId(transfer.bundle_id); setSelectedBundleId(transfer.bundle_id); }} title={`Inspect ${transfer.bundle_id}`}>
-                  <span className="transfer-history-time">{seconds(transfer.receiver_acceptance_us)}</span>
-                  <span className="transfer-history-content"><b>{transfer.from_node} → {transfer.to_node}</b><small>{transfer.bundle_id} · {transfer.contact_id}</small></span>
-                </button>)}
+            <div className="panel-heading"><div className="heading-icon violet"><History size={15} /></div><h2>Transfers by bundle</h2><span className="transfer-count">{transferBundles.length} bundles</span></div>
+            {!snapshot ? <p className="empty-copy">Transfers from this run will be recorded here.</p> : transferBundles.length === 0 ? <p className="empty-copy">No bundles have been generated in this run yet.</p> : <>
+              <div className="transfer-history-list" aria-label="Bundle transfer history for this simulation run">
+                {transferBundles.slice(0, transferBundleLimit).map((bundle) => <details className="transfer-bundle-group" key={bundle.bundle_id} open={expandedTransferBundleIds.has(bundle.bundle_id)} onToggle={(event) => {
+                  const isOpen = event.currentTarget.open;
+                  setExpandedTransferBundleIds((current) => {
+                    const next = new Set(current);
+                    if (isOpen) next.add(bundle.bundle_id); else next.delete(bundle.bundle_id);
+                    return next;
+                  });
+                }}>
+                  <summary className="transfer-bundle-summary" onClick={() => { setHistorySelectedBundleId(bundle.bundle_id); setSelectedBundleId(bundle.bundle_id); }}>
+                    <span className={`bundle-status ${bundle.status}`} />
+                    <span className="transfer-bundle-heading"><b>{bundle.bundle_id}</b><small>{bundle.source} → {bundle.destination}</small></span>
+                    <span className={`transfer-bundle-status ${bundle.status}`}>{bundle.status.replaceAll("_", " ")}</span>
+                    <span className="transfer-bundle-count">{bundle.forwarding_history.length} hops</span>
+                  </summary>
+                  <div className="transfer-bundle-hops">
+                    {bundle.forwarding_history.length ? bundle.forwarding_history.map((hop, index) => <button className="transfer-history-row" key={`${hop.contact_id}-${hop.receiver_acceptance_us}-${index}`} onClick={() => { setHistorySelectedBundleId(bundle.bundle_id); setSelectedBundleId(bundle.bundle_id); }}>
+                      <span className="transfer-history-time">{seconds(hop.receiver_acceptance_us)}</span>
+                      <span className="transfer-history-content"><b>{hop.from_node} → {hop.to_node}</b><small>{hop.contact_id}</small></span>
+                    </button>) : <p className="empty-copy">No successful hops recorded yet.</p>}
+                  </div>
+                </details>)}
               </div>
-              {runTransfers.length > transferHistoryLimit && <button className="show-older-transfers" onClick={() => setTransferHistoryLimit((count) => Math.min(count + 20, runTransfers.length))}>Show older transfers ({runTransfers.length - transferHistoryLimit} remaining)</button>}
-              <p className="transfer-history-note">Successful hops are retained for the full run. Select a row to inspect that bundle’s complete path.</p>
+              {transferBundles.length > transferBundleLimit && <button className="show-older-transfers" onClick={() => setTransferBundleLimit((count) => Math.min(count + 12, transferBundles.length))}>Show older bundles ({transferBundles.length - transferBundleLimit} remaining)</button>}
+              <p className="transfer-history-note">Each bundle keeps its successful hops for this run. Select a bundle or hop to inspect its path.</p>
             </>}
           </section>
 

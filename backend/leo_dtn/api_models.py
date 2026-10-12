@@ -75,6 +75,11 @@ class SimulationConfigurationInput(APIModel):
 
 
 RoutingPolicyName = Literal["contact_aware_earliest_arrival", "static_minimum_hop"]
+PlaybackSpeed = Literal[0.25, 0.5, 1.0, 2.0, 4.0]
+
+
+class PlaybackSpeedRequest(APIModel):
+    speed: PlaybackSpeed
 
 
 class CreateSimulationRequest(APIModel):
@@ -98,6 +103,7 @@ class SimulationStatusResponse(APIModel):
     status: Literal["ready", "running", "paused", "completed", "failed"]
     simulated_time_us: int
     horizon_us: int
+    playback_speed: PlaybackSpeed
     random_seed: int
     routing_policy: str
     node_count: int
@@ -177,6 +183,7 @@ class SimulationSnapshotResponse(APIModel):
     status: Literal["ready", "running", "paused", "completed", "failed"]
     time_us: int
     horizon_us: int
+    playback_speed: PlaybackSpeed
     routing_policy: str
     nodes: tuple[NodeResponse, ...]
     contacts: tuple[ContactResponse, ...]

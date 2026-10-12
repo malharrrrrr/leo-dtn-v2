@@ -11,6 +11,7 @@ The REST layer is an adapter around the Python engine. Pydantic validates inputs
 | `POST /simulations/{id}/pause` | Change `running` to `paused`. |
 | `POST /simulations/{id}/resume` | Change `paused` to `running`; orbital playback resumes in the API process. |
 | `POST /simulations/{id}/step` | From `ready` or `paused`, process exactly one next engine event, preserving stable queue order. |
+| `POST /simulations/{id}/playback-speed` | Set local playback pacing to `0.25`, `0.5`, `1`, `2`, or `4` times the default display speed. This changes wall-clock pacing only; event time and routing semantics remain deterministic. |
 | `POST /simulations/{id}/advance` | From `running`, process up to `max_events` (1–10,000) through `target_time_us` (defaults to the current planned horizon). It does not use wall-clock duration. For orbital contact generation, the session extends the deterministic contact plan as needed to keep bundle-TTL lookahead; for explicit contacts, the configured horizon remains a hard stop. A response reports events processed and whether the target was reached. |
 | `POST /simulations/{id}/reset` | Rebuild the run from its saved configuration and restore `ready` state. |
 
@@ -34,7 +35,7 @@ All query responses are projections from immutable engine snapshots. They do not
 
 ## Frontend update model
 
-Poll run status and the compact snapshot while a run is active. Fetch event pages by sequence cursor and metrics when needed. For orbital runs, the API process advances simulated time by one simulated second about every 120 ms while the session is running; the dashboard only polls and renders snapshots. Closing the dashboard does not stop the run, but pausing or stopping/restarting the API does. The pacing task lives outside the engine; event timestamps and outcomes remain deterministic for a given configuration and requested advancement sequence. Explicit-contact runs still advance through bounded `/advance` commands. Consider WebSockets only if polling proves inadequate.
+Poll run status and the compact snapshot while a run is active. Fetch event pages by sequence cursor and metrics when needed. For orbital runs, the API process advances simulated time by one simulated second about every 120 ms at `1×`; the dashboard can select `0.25×`, `0.5×`, `1×`, `2×`, or `4×`. The dashboard polls and renders snapshots. Closing the dashboard does not stop the run, but pausing or stopping/restarting the API does. The pacing task lives outside the engine; event timestamps and outcomes remain deterministic for a given configuration and requested advancement sequence. Explicit-contact runs advance through bounded `/advance` commands using the selected simulated-time increment. Consider WebSockets only if polling proves inadequate.
 
 The Scenarios view reads summaries from `GET /scenarios` and loads one selected configuration from `GET /scenarios/{scenario_id}`. “Use this preset” copies that API-returned configuration into the dashboard’s next-run setup; it does not start a run or mutate an existing engine session. User-editable custom configurations remain a Simulation setup feature, separate from the read-only preset catalog.
 

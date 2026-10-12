@@ -225,6 +225,8 @@ input:focus, select:focus { border-color: #3d91e7; box-shadow: 0 0 0 2px rgba(54
 .playback-bar { display: flex; align-items: center; gap: 15px; min-height: 64px; padding: 9px 11px; border: 1px solid #263448; border-radius: 10px; background: linear-gradient(135deg, #121d2b, #101824); }
 .playback-actions { display: flex; gap: 6px; }
 .playback-actions .icon-button { width: 34px; height: 34px; }
+.playback-speed { display: flex; align-items: center; gap: 6px; color: #8797aa; font-size: 9px; white-space: nowrap; }
+.playback-speed select { height: 32px; min-width: 67px; padding: 0 7px; border-color: #2a3b50; background: #111c2a; color: #dce9f7; font: 9px "DM Mono", monospace; }
 .timeline { flex: 1; min-width: 100px; }
 .time-label { display: flex; justify-content: center; gap: 5px; margin-bottom: 8px; font: 10px "DM Mono", monospace; }
 .time-label span { color: #7c8ca0; }
@@ -263,6 +265,18 @@ input:focus, select:focus { border-color: #3d91e7; box-shadow: 0 0 0 2px rgba(54
 .path-step b { font-size: 9px; }.path-step small { color: #8090a3; margin-top: 3px; font: 8px "DM Mono", monospace; }
 .transfer-count { margin-left: auto; color: #8292a6; font: 8px "DM Mono", monospace; }
 .transfer-history-list { display: flex; flex-direction: column; max-height: 250px; overflow-y: auto; }
+.transfer-bundle-group { border-bottom: 1px solid #233142; }
+.transfer-bundle-summary { display: flex; align-items: center; gap: 7px; min-height: 39px; cursor: pointer; list-style: none; }
+.transfer-bundle-summary::-webkit-details-marker { display: none; }
+.transfer-bundle-summary::after { content: "⌄"; margin-left: 2px; color: #72849a; font-size: 12px; }
+.transfer-bundle-group[open] > .transfer-bundle-summary::after { content: "⌃"; }
+.transfer-bundle-heading { display: flex; flex: 1; flex-direction: column; gap: 3px; min-width: 0; }
+.transfer-bundle-heading b { color: #dbe8f5; font: 700 9px "DM Mono", monospace; }
+.transfer-bundle-heading small { color: #8798ac; font-size: 8px; overflow-wrap: anywhere; }
+.transfer-bundle-count { color: #8292a6; font: 8px "DM Mono", monospace; white-space: nowrap; }
+.transfer-bundle-status { color: #d8a950; font-size: 7px; text-transform: capitalize; white-space: nowrap; }
+.transfer-bundle-status.delivered { color: #29d8a2; }.transfer-bundle-status.expired, .transfer-bundle-status.rejected_at_source { color: #f07880; }
+.transfer-bundle-hops { padding: 0 0 5px 14px; }
 .transfer-history-row { display: flex; align-items: flex-start; gap: 8px; width: 100%; padding: 8px 2px; border: 0; border-bottom: 1px solid #202d3c; background: transparent; color: #dbe8f5; text-align: left; cursor: pointer; }
 .transfer-history-row:hover { background: rgba(45, 117, 174, .09); }
 .transfer-history-time { flex: 0 0 52px; padding-top: 1px; color: #7e91a7; font: 8px "DM Mono", monospace; }

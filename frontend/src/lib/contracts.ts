@@ -2,6 +2,7 @@ export type NodeKind = "satellite" | "ground_station";
 export type BundleStatus = "queued" | "transmitting" | "in_transit" | "delivered" | "expired" | "rejected_at_source";
 export type RunStatus = "ready" | "running" | "paused" | "completed" | "failed";
 export type RoutingPolicy = "contact_aware_earliest_arrival" | "static_minimum_hop";
+export type PlaybackSpeed = 0.25 | 0.5 | 1 | 2 | 4;
 
 export interface NodeConfig {
   node_id: string;
@@ -112,6 +113,7 @@ export interface SimulationSnapshot {
   status: RunStatus;
   time_us: number;
   horizon_us: number;
+  playback_speed: PlaybackSpeed;
   routing_policy: RoutingPolicy;
   nodes: NodeState[];
   contacts: ContactState[];
@@ -125,6 +127,7 @@ export interface CreatedSimulation {
   status: RunStatus;
   simulated_time_us: number;
   horizon_us: number;
+  playback_speed: PlaybackSpeed;
   random_seed: number;
   routing_policy: RoutingPolicy;
   node_count: number;
