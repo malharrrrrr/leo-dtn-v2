@@ -40,7 +40,7 @@ No deadlines are assigned. Each milestone has an independently checkable exit co
 
 **Acceptance:** API/engine integration tests verify command validation, state transitions, response snapshots, event cursors, exports, and that API code contains no forwarding/routing semantics. The API tests run against a local Uvicorn subprocess to exercise the real HTTP boundary.
 
-## 6. Frontend dashboard and visualization (first pass needs functional/visual repair)
+## 6. Frontend dashboard and visualization (first pass implemented; visual refinement completed, interaction validation pending)
 
 **Depends on:** API response contract and stable snapshots.
 
