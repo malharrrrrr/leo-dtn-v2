@@ -342,7 +342,7 @@ input:focus, select:focus { border-color: #3d91e7; box-shadow: 0 0 0 2px rgba(54
 }
 
 body {
-  font-family: var(--font-manrope), sans-serif;
+  font-family: var(--font-geist), sans-serif;
   font-size: 14px;
   letter-spacing: .005em;
   -webkit-font-smoothing: antialiased;
