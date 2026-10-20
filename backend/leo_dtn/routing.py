@@ -52,8 +52,8 @@ def earliest_arrival_path(
             duration = serialization_duration_us(
                 payload_bytes, contact.rate_bits_per_second
             )
-            # The full serialization interval must end strictly before contact end.
-            if tx_start + duration >= contact.end_us:
+            # The last bit must arrive strictly before contact end.
+            if tx_start + duration + contact.propagation_delay_us >= contact.end_us:
                 continue
             next_arrival = tx_start + duration + contact.propagation_delay_us
             previous = best_arrival.get(contact.to_node)
@@ -152,7 +152,7 @@ class StaticMinimumHop:
                 continue
             start = max(start_time_us, contact.start_us)
             duration = serialization_duration_us(payload_bytes, contact.rate_bits_per_second)
-            if start + duration < contact.end_us:
+            if start + duration + contact.propagation_delay_us < contact.end_us:
                 feasible.append((start, contact.contact_id, contact))
         if not feasible:
             return None

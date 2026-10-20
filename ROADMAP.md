@@ -22,7 +22,7 @@ No deadlines are assigned. Each milestone has an independently checkable exit co
 
 **Deliverables:** admission/overflow, TTL and expiry, interrupted transmission behavior, duplicate/loop rules, resource contention, baseline and contact-aware policy interfaces.
 
-**Acceptance:** focused tests cover each boundary and simultaneous expiry/delivery. Failed or infeasible contacts cannot create a delivery; finite buffers are enforced; routing can be replaced without changing engine event semantics.
+**Acceptance:** focused tests cover each boundary and simultaneous expiry/delivery. A contact must remain open until modeled last-bit arrival (serialization plus propagation); a close before or at arrival fails the attempt and retains the complete bundle at its sender for retry. Failed or infeasible contacts cannot create a delivery; finite buffers are enforced; routing can be replaced without changing engine event semantics.
 
 ## 4. Metrics and reproducible experiments (engine support complete; dashboard analysis pending)
 
