@@ -12,7 +12,9 @@ from typing import Any
 from .engine import SimulationEngine
 from .metrics import MetricReport, calculate_metrics
 from .model import BundleRequest, Contact, ContactInterruption, Node, SimulationSnapshot
-from .routing import ContactAwareEarliestArrival, RoutingPolicy
+from .orbit import generate_contact_plan
+from .routing import ContactAwareEarliestArrival, RoutingPolicy, StaticMinimumHop
+from .scenarios import ScenarioDefinition
 
 ENGINE_VERSION = "0.1.0"
 
@@ -34,6 +36,63 @@ class ExperimentResult:
     manifest: RunManifest
     snapshot: SimulationSnapshot
     metrics: MetricReport
+
+
+@dataclass(frozen=True, slots=True)
+class PolicyComparisonResult:
+    routing_policy: str
+    metrics: MetricReport
+
+
+def compare_routing_policies(
+    *,
+    scenario: ScenarioDefinition,
+    random_seed: int,
+    horizon_us: int,
+) -> tuple[PolicyComparisonResult, ...]:
+    """Run both routing policies on identical, reproducible scenario inputs."""
+    if not isinstance(random_seed, int) or isinstance(random_seed, bool):
+        raise ValueError("random seed must be an integer")
+    if not isinstance(horizon_us, int) or isinstance(horizon_us, bool) or horizon_us <= 0:
+        raise ValueError("comparison horizon must be a positive integer number of microseconds")
+
+    planning_horizon_us = max(
+        horizon_us,
+        max(
+            (bundle.creation_time_us + bundle.ttl_us for bundle in scenario.bundles),
+            default=0,
+        ) if scenario.orbital_contact_generation else horizon_us,
+    )
+    contacts = scenario.contacts
+    if scenario.orbital_contact_generation:
+        contacts += generate_contact_plan(
+            scenario.nodes,
+            horizon_us=planning_horizon_us,
+            sample_interval_us=scenario.contact_sample_interval_us,
+            rate_bits_per_second=scenario.orbital_link_rate_bits_per_second,
+            minimum_elevation_deg=scenario.minimum_elevation_deg,
+        )
+
+    results: list[PolicyComparisonResult] = []
+    for policy_type in (ContactAwareEarliestArrival, StaticMinimumHop):
+        engine = SimulationEngine(
+            nodes=scenario.nodes,
+            contacts=contacts,
+            routing_policy=policy_type(),
+        )
+        for bundle in scenario.bundles:
+            if scenario.bundle_generation_interval_us is None:
+                engine.add_bundle(bundle)
+            else:
+                engine.add_recurring_bundle(bundle, interval_us=scenario.bundle_generation_interval_us)
+        snapshot = engine.run_until(horizon_us)
+        results.append(
+            PolicyComparisonResult(
+                routing_policy=snapshot.routing_policy,
+                metrics=calculate_metrics(snapshot, horizon_us=horizon_us),
+            )
+        )
+    return tuple(results)
 
 
 def run_experiment(

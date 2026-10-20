@@ -137,13 +137,39 @@ export interface CreatedSimulation {
 }
 
 export interface Metrics {
+  horizon_us: number;
   generated_count: number;
   delivered_count: number;
   undelivered_count: number;
+  source_rejected_count: number;
   expired_count: number;
   delivery_ratio: number | null;
+  expiration_ratio: number | null;
   mean_delivery_latency_us: number | null;
+  median_delivery_latency_us: number | null;
   mean_hop_count: number | null;
+  median_hop_count: number | null;
   contact_utilization_fraction: number | null;
+  mean_total_buffer_occupancy_bytes: number;
   peak_total_buffer_occupancy_bytes: number;
+  mean_total_buffer_capacity_fraction: number | null;
+  status_counts: [string, number][];
+  per_node_buffer: { node_id: string; peak_occupancy_bytes: number; mean_occupancy_bytes: number; mean_capacity_fraction: number | null }[];
+  per_contact_utilization: { contact_id: string; transmitted_payload_bits: number; scheduled_capacity_bits: number; utilization_fraction: number | null }[];
+}
+
+export interface PolicyComparison {
+  routing_policy: RoutingPolicy;
+  metrics: Metrics;
+}
+
+export interface ScenarioComparison {
+  scenario: ScenarioDetails;
+  results: PolicyComparison[];
+}
+
+export interface ExperimentComparison {
+  random_seed: number;
+  horizon_us: number;
+  scenarios: ScenarioComparison[];
 }

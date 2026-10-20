@@ -24,11 +24,11 @@ No deadlines are assigned. Each milestone has an independently checkable exit co
 
 **Acceptance:** focused tests cover each boundary and simultaneous expiry/delivery. A contact must remain open until modeled last-bit arrival (serialization plus propagation); a close before or at arrival fails the attempt and retains the complete bundle at its sender for retry. Failed or infeasible contacts cannot create a delivery; finite buffers are enforced; routing can be replaced without changing engine event semantics.
 
-## 4. Metrics and reproducible experiments (engine support complete; dashboard analysis pending)
+## 4. Metrics and reproducible experiments (engine support and paired preset comparison implemented; broader repeated-run analysis pending)
 
 **Depends on:** milestones 2–3.
 
-**Deliverables:** metric aggregation, scenario/config schema, explicit random seed, run manifest, JSON/CSV exports, and experiment runner callable locally.
+**Deliverables:** metric aggregation, scenario/config schema, explicit random seed, run manifest, JSON/CSV exports, experiment runner callable locally, and a backend comparison endpoint for both routing policies across selectable presets. The Metrics & comparison view reports paired results, formulas, interpretation, and the cutoff/censoring caveat.
 
 **Acceptance:** hand-calculated fixtures validate denominators and cutoff cases; repeated seeded runs produce identical manifests/results; comparisons vary one declared factor at a time or document factorial design.
 
@@ -40,11 +40,11 @@ No deadlines are assigned. Each milestone has an independently checkable exit co
 
 **Acceptance:** API/engine integration tests verify command validation, state transitions, response snapshots, event cursors, exports, and that API code contains no forwarding/routing semantics. The API tests run against a local Uvicorn subprocess to exercise the real HTTP boundary.
 
-## 6. Frontend dashboard and visualization (first pass implemented; visual refinement completed, interaction validation pending)
+## 6. Frontend dashboard and visualization (first pass and metrics comparison implemented; interaction validation pending)
 
 **Depends on:** API response contract and stable snapshots.
 
-**Deliverables:** implemented first dashboard slice with three-region dark layout; routing/config controls; add/remove and explicit/seeded-random satellite placement; 3D globe and topology views; playback/time controls; selected bundle/node/network panels; metrics and empty/loading/error states; an API-backed preset library using the same moving Mumbai–New York LEO model as the Simulation default, with controlled variants for satellite count, buffer capacity, and traffic. Presets are inspectable and load into next-run configuration without starting a run. The fixed-contact relay vertical slice remains an engine fixture, not a displayed orbital scenario. A geographic map is deferred because coordinates are scene-frame XYZ, not latitude/longitude. In 3D, Earth remains stationary unless the user rotates the view; packet-follow adjusts the camera target from engine state.
+**Deliverables:** implemented first dashboard slice with three-region dark layout; routing/config controls; add/remove and explicit/seeded-random satellite placement; 3D globe and topology views; playback/time controls; selected bundle/node/network panels; metrics and empty/loading/error states; an API-backed preset library using the same moving Mumbai–New York LEO model as the Simulation default, with controlled variants for satellite count, buffer capacity, and traffic. The Metrics & comparison view runs both routing policies against matched backend scenarios and presents ranking, key metrics, formulas, and inference. Presets are inspectable and load into next-run configuration without starting a run. The fixed-contact relay vertical slice remains an engine fixture, not a displayed orbital scenario. A geographic map is deferred because coordinates are scene-frame XYZ, not latitude/longitude. In 3D, Earth remains stationary unless the user rotates the view; packet-follow adjusts the camera target from engine state.
 
 **Acceptance:** frontend uses engine snapshots for orbital state, contact activity, and bundle behavior; handles changing satellite counts without fixed-slot assumptions; seeded placement produces identical elements; topology edits apply before run creation; and preset catalog/detail views use API-returned configuration and metadata. Loading a preset changes next-run configuration without starting or mutating a run. Earth remains fixed; manual rotation works; satellites visibly move; geometry-derived links appear only while in line of sight and disappear when visibility ends; packet-follow keeps a selected bundle in view and marker movement follows actual active transmission state. The right panel retains successful transfer hops grouped by bundle across the in-memory run, and selecting a bundle/hop opens that bundle's forwarding path. Playback has state-aware play/pause, single-event stepping, reset, and an API-backed speed selector that changes display pacing without changing engine semantics. Link/bundle history remains accurate, simulation lifecycle states are handled, and layout is usable at ordinary laptop widths. Type-check, lint, production build, and interaction-level frontend tests pass.
 

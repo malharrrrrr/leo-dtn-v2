@@ -257,5 +257,33 @@ class MetricsResponse(APIModel):
     per_contact_utilization: tuple[ContactMetricsResponse, ...]
 
 
+class ExperimentComparisonRequest(APIModel):
+    scenario_ids: tuple[str, ...] = Field(min_length=1, max_length=5)
+    random_seed: int = 42
+    horizon_us: int = Field(default=600_000_000, ge=60_000_000, le=3_600_000_000)
+
+    @model_validator(mode="after")
+    def check_scenarios(self) -> ExperimentComparisonRequest:
+        if len(set(self.scenario_ids)) != len(self.scenario_ids):
+            raise ValueError("scenario IDs must be unique")
+        return self
+
+
+class PolicyComparisonResponse(APIModel):
+    routing_policy: RoutingPolicyName
+    metrics: MetricsResponse
+
+
+class ScenarioComparisonResponse(APIModel):
+    scenario: ScenarioResponse
+    results: tuple[PolicyComparisonResponse, ...]
+
+
+class ExperimentComparisonResponse(APIModel):
+    random_seed: int
+    horizon_us: int
+    scenarios: tuple[ScenarioComparisonResponse, ...]
+
+
 class ExportFormat(APIModel):
     format: Literal["json", "scenario_csv", "events_csv", "metrics_csv"]

@@ -1,4 +1,4 @@
-import type { CreatedSimulation, Metrics, PlaybackSpeed, RoutingPolicy, ScenarioDetails, ScenarioSummary, SimulationConfig, SimulationSnapshot } from "./contracts";
+import type { CreatedSimulation, ExperimentComparison, Metrics, PlaybackSpeed, RoutingPolicy, ScenarioDetails, ScenarioSummary, SimulationConfig, SimulationSnapshot } from "./contracts";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
@@ -54,4 +54,11 @@ export function getSimulation(id: string) {
 
 export function getMetrics(id: string) {
   return request<Metrics>(`/simulations/${id}/metrics`);
+}
+
+export function compareExperiments(scenarioIds: string[], randomSeed: number, horizonUs: number) {
+  return request<ExperimentComparison>("/experiments/compare", {
+    method: "POST",
+    body: JSON.stringify({ scenario_ids: scenarioIds, random_seed: randomSeed, horizon_us: horizonUs }),
+  });
 }

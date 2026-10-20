@@ -10,6 +10,7 @@ import type { BundleConfig, BundleState, ContactConfig, Metrics, NodeConfig, Pla
 import { NetworkScene } from "./network-scene";
 import { NetworkTopology } from "./network-topology";
 import { cloneScenarioConfiguration, ScenarioLibrary } from "./scenario-library";
+import { ExperimentsDashboard } from "./experiments-dashboard";
 
 const EARTH_RADIUS_KM = 6371;
 const groundPosition = (latitude: number, longitude: number): [number, number, number] => {
@@ -75,7 +76,7 @@ export function Dashboard() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [followPacket, setFollowPacket] = useState(true);
   const [viewMode, setViewMode] = useState<"globe" | "topology">("globe");
-  const [activeTab, setActiveTab] = useState<"simulation" | "scenarios">("simulation");
+  const [activeTab, setActiveTab] = useState<"simulation" | "experiments" | "scenarios">("simulation");
   const [loadedScenarioName, setLoadedScenarioName] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -273,15 +274,15 @@ export function Dashboard() {
     <main className="app-shell">
       <header className="topbar">
         <div className="brand"><div className="brand-mark"><Globe2 size={22} /></div><div><b>LEO-DTN</b><span>Satellite Network Simulator</span></div></div>
-        <nav className="top-nav"><button className={`nav-item ${activeTab === "simulation" ? "selected" : ""}`} onClick={() => setActiveTab("simulation")}><Play size={15} /> Simulation</button><button className="nav-item" disabled title="Experiment analysis is not implemented yet"><Activity size={15} /> Experiments</button><button className={`nav-item ${activeTab === "scenarios" ? "selected" : ""}`} onClick={() => setActiveTab("scenarios")}><Layers3 size={15} /> Scenarios</button></nav>
+        <nav className="top-nav"><button className={`nav-item ${activeTab === "simulation" ? "selected" : ""}`} onClick={() => setActiveTab("simulation")}><Play size={15} /> Simulation</button><button className={`nav-item ${activeTab === "experiments" ? "selected" : ""}`} onClick={() => setActiveTab("experiments")}><Activity size={15} /> Metrics &amp; comparison</button><button className={`nav-item ${activeTab === "scenarios" ? "selected" : ""}`} onClick={() => setActiveTab("scenarios")}><Layers3 size={15} /> Scenarios</button></nav>
         <div className="status-chip"><span className={`status-dot ${status}`} /><div><b>{status === "ready" ? "Simulator Ready" : status[0].toUpperCase() + status.slice(1)}</b><small>t = {snapshot ? seconds(snapshot.time_us) : "0.00 s"}</small></div></div>
-        <button className="primary top-run" onClick={() => activeTab === "scenarios" ? setActiveTab("simulation") : snapshot ? sendControl(status === "paused" ? "resume" : "start") : startNewSimulation()} disabled={activeTab === "simulation" && (busy || status === "running" || status === "completed" || status === "failed")}>
-          {activeTab === "scenarios" ? <Play size={16} /> : busy ? <LoaderCircle className="spin" size={16} /> : status === "running" ? <Activity size={16} /> : <Play size={16} />}
-          {activeTab === "scenarios" ? "Back to simulation" : snapshot ? status === "paused" ? "Resume" : status === "running" ? "Running" : "Run Simulation" : "Run Simulation"}
+        <button className="primary top-run" onClick={() => activeTab !== "simulation" ? setActiveTab("simulation") : snapshot ? sendControl(status === "paused" ? "resume" : "start") : startNewSimulation()} disabled={activeTab === "simulation" && (busy || status === "running" || status === "completed" || status === "failed")}>
+          {activeTab !== "simulation" ? <Play size={16} /> : busy ? <LoaderCircle className="spin" size={16} /> : status === "running" ? <Activity size={16} /> : <Play size={16} />}
+          {activeTab !== "simulation" ? "Back to simulation" : snapshot ? status === "paused" ? "Resume" : status === "running" ? "Running" : "Run Simulation" : "Run Simulation"}
         </button>
       </header>
 
-      {activeTab === "scenarios" ? <ScenarioLibrary canLoadPreset={status !== "running"} onLoadPreset={loadScenarioPreset} /> : <div className="dashboard-grid">
+      {activeTab === "scenarios" ? <ScenarioLibrary canLoadPreset={status !== "running"} onLoadPreset={loadScenarioPreset} /> : activeTab === "experiments" ? <ExperimentsDashboard /> : <div className="dashboard-grid">
         <aside className="left-column">
           <section className="panel setup-panel">
             <div className="panel-heading"><div className="heading-icon blue"><Waypoints size={16} /></div><h2>Simulation setup</h2><span className="section-tag">CONFIG</span></div>

@@ -106,6 +106,26 @@ def test_scenario_catalog_exposes_all_presets_and_normalized_details(api_client)
     assert orbital_run.json()["contact_count"] > 0
 
 
+def test_experiment_comparison_runs_both_policies_on_the_same_preset(api_client):
+    response = request(api_client, "POST", "/experiments/compare", json_body={
+        "scenario_ids": ["leo-sparse-constellation"],
+        "random_seed": 42,
+        "horizon_us": 60_000_000,
+    })
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["random_seed"] == 42
+    assert payload["horizon_us"] == 60_000_000
+    assert payload["scenarios"][0]["scenario"]["satellite_count"] == 4
+    results = payload["scenarios"][0]["results"]
+    assert {item["routing_policy"] for item in results} == {
+        "contact_aware_earliest_arrival", "static_minimum_hop",
+    }
+    assert all(item["metrics"]["horizon_us"] == 60_000_000 for item in results)
+    assert all(item["metrics"]["generated_count"] == 1 for item in results)
+
+
 def test_run_controls_advance_only_on_command_and_reset_to_initial_state(api_client):
     simulation_id = create_run(api_client)
     assert request(api_client, "POST", f"/simulations/{simulation_id}/pause").status_code == 409

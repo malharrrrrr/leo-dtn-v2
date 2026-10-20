@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from dataclasses import asdict
 from contextlib import asynccontextmanager
 from typing import Literal
 
@@ -18,12 +19,16 @@ from .api_models import (
     ContactResponse,
     CreateSimulationRequest,
     EventResponse,
+    ExperimentComparisonRequest,
+    ExperimentComparisonResponse,
     MetricsResponse,
     NodeResponse,
     PlaybackSpeedRequest,
     RunCreatedResponse,
     ScenarioResponse,
+    ScenarioComparisonResponse,
     ScenarioSummary,
+    PolicyComparisonResponse,
     SimulationSnapshotResponse,
     SimulationStatusResponse,
 )
@@ -35,6 +40,7 @@ from .experiments import (
     export_metrics_csv,
     export_run_json,
     export_scenario_csv,
+    compare_routing_policies,
 )
 from .metrics import calculate_metrics
 from .service import InvalidRunTransition, SimulationManager, SimulationSession, default_scenario
@@ -154,6 +160,52 @@ def create_app(manager: SimulationManager | None = None) -> FastAPI:
             configuration=config,
         )
 
+    @app.post("/experiments/compare", response_model=ExperimentComparisonResponse)
+    def compare_experiments(request: ExperimentComparisonRequest):
+        comparisons = []
+        for scenario_id in request.scenario_ids:
+            definition = scenario_definition(scenario_id)
+            if definition is None or scenario_id == "relay-vertical-slice":
+                raise HTTPException(status_code=404, detail=f"selectable scenario not found: {scenario_id}")
+            metrics = compare_routing_policies(
+                scenario=definition,
+                random_seed=request.random_seed,
+                horizon_us=request.horizon_us,
+            )
+            summary = ScenarioSummary(
+                scenario_id=definition.scenario_id,
+                name=definition.name,
+                description=definition.description,
+                focus=definition.focus,
+                node_count=len(definition.nodes),
+                satellite_count=sum(node.kind.value == "satellite" for node in definition.nodes),
+                ground_station_count=sum(node.kind.value == "ground_station" for node in definition.nodes),
+                contact_count=len(definition.contacts),
+                bundle_count=len(definition.bundles),
+                orbital_contact_generation=definition.orbital_contact_generation,
+            )
+            scenario_response = ScenarioResponse(
+                **summary.model_dump(),
+                configuration=default_scenario(scenario_id),
+            )
+            comparisons.append(
+                ScenarioComparisonResponse(
+                    scenario=scenario_response,
+                    results=tuple(
+                        PolicyComparisonResponse(
+                            routing_policy=item.routing_policy,
+                            metrics=MetricsResponse.model_validate(asdict(item.metrics)),
+                        )
+                        for item in metrics
+                    ),
+                )
+            )
+        return ExperimentComparisonResponse(
+            random_seed=request.random_seed,
+            horizon_us=request.horizon_us,
+            scenarios=tuple(comparisons),
+        )
+
     @app.post("/simulations", response_model=RunCreatedResponse, status_code=201)
     def create_simulation(request: CreateSimulationRequest):
         try:
@@ -271,7 +323,7 @@ def create_app(manager: SimulationManager | None = None) -> FastAPI:
             current_time = session.engine.time_us
             snapshot = session.engine.snapshot()
         report = calculate_metrics(snapshot, horizon_us=current_time)
-        return report
+        return MetricsResponse.model_validate(asdict(report))
 
     @app.get("/simulations/{simulation_id}/export")
     def export_simulation(simulation_id: str, format: Literal["json", "scenario_csv", "events_csv", "metrics_csv"]):
