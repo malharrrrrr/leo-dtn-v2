@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
 import {
-  Activity, AlertCircle, ChevronDown, CircleHelp, Globe2, History, Layers3, Link2, LoaderCircle,
+  Activity, AlertCircle, BookOpen, ChevronDown, CircleHelp, Globe2, History, Layers3, Link2, LoaderCircle,
   Pause, Play, Plus, RotateCcw, Satellite, SkipForward, Sparkles, Waypoints,
 } from "lucide-react";
 import { advanceSimulation, createSimulation, getMetrics, getSimulation, postControl, setSimulationPlaybackSpeed } from "@/lib/api";
@@ -274,7 +275,7 @@ export function Dashboard() {
     <main className="app-shell">
       <header className="topbar">
         <div className="brand"><div className="brand-mark"><Globe2 size={22} /></div><div><b>LEO-DTN</b><span>Satellite Network Simulator</span></div></div>
-        <nav className="top-nav"><button className={`nav-item ${activeTab === "simulation" ? "selected" : ""}`} onClick={() => setActiveTab("simulation")}><Play size={15} /> Simulation</button><button className={`nav-item ${activeTab === "experiments" ? "selected" : ""}`} onClick={() => setActiveTab("experiments")}><Activity size={15} /> Metrics &amp; comparison</button><button className={`nav-item ${activeTab === "scenarios" ? "selected" : ""}`} onClick={() => setActiveTab("scenarios")}><Layers3 size={15} /> Scenarios</button></nav>
+        <nav className="top-nav"><button className={`nav-item ${activeTab === "simulation" ? "selected" : ""}`} onClick={() => setActiveTab("simulation")}><Play size={15} /> Simulation</button><button className={`nav-item ${activeTab === "experiments" ? "selected" : ""}`} onClick={() => setActiveTab("experiments")}><Activity size={15} /> Metrics &amp; comparison</button><button className={`nav-item ${activeTab === "scenarios" ? "selected" : ""}`} onClick={() => setActiveTab("scenarios")}><Layers3 size={15} /> Scenarios</button><Link className="nav-item" href="/about"><BookOpen size={15} /> About</Link></nav>
         <div className="status-chip"><span className={`status-dot ${status}`} /><div><b>{status === "ready" ? "Simulator Ready" : status[0].toUpperCase() + status.slice(1)}</b><small>t = {snapshot ? seconds(snapshot.time_us) : "0.00 s"}</small></div></div>
         <button className="primary top-run" onClick={() => activeTab !== "simulation" ? setActiveTab("simulation") : snapshot ? sendControl(status === "paused" ? "resume" : "start") : startNewSimulation()} disabled={activeTab === "simulation" && (busy || status === "running" || status === "completed" || status === "failed")}>
           {activeTab !== "simulation" ? <Play size={16} /> : busy ? <LoaderCircle className="spin" size={16} /> : status === "running" ? <Activity size={16} /> : <Play size={16} />}
