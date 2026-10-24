@@ -114,6 +114,14 @@ On Unix, use `backend/.venv/bin/python`. Do not make engine tests depend on runn
 
 ## Suggested next task
 
-Verify the Metrics & comparison view against the API, especially the five default paired results, displayed seconds vs API microseconds, filters/cutoff controls, and mobile table layout. Then launch the API/dashboard and continue interactive checks for bundle markers, playback, and preset loading. Continue long-run orbital validation: contacts and recurring traffic continue as intended, relay queues resume on new contacts, and packet-follow keeps the selected bundle visible. Keep any claims about statistical significance limited to actual repeated-run analysis.
+### Latest finalization work (2026-10-25)
+
+- The Metrics & comparison tab now starts with the baseline selected and waits for an explicit run. It supports 1, 3, or 5 consecutive seeds, displays means and per-metric seed ranges, charts mean delivery ratio, and downloads run-level CSV data. It describes censoring, metric formulas, design limits, and orbital-model limitations.
+- Paired preset comparisons now make the seed meaningful: each satellite phase is generated using the versioned SHA-256 mapping documented in `docs/experiments.md`. Shared satellite IDs keep the same phases across controlled preset variants, and both routing policies receive the exact same realization.
+- `backend/scripts/run_reference_study.py` regenerates `docs/results/reference-study.csv` and its JSON companion: all five presets, seeds 42–44, and a 3,600-second cutoff. `docs/final-evaluation.md` includes the method and summarized measured results. These results are illustrative; the current UI does not make statistical significance claims.
+- Verification on 2026-10-25: backend suite passed (53 tests); frontend typecheck and lint passed; browser check confirmed the Metrics & comparison first-run flow and a successful one-seed API comparison. The production build compiled and generated routes, but Next.js then stopped with its security advisory for the installed version; see the current user-facing completion message for the requested follow-up. Browser access initially required local service access; stop any remaining local dev processes before further work.
+- Current branch remains `feat/scenarios`.
+
+Next, handle the Next.js security upgrade when the user chooses whether to use a separate worktree or the current checkout. Then continue interactive checks for the 3D playback, preset loading, multi-seed run-level CSV download, and mobile layout. Keep claims about statistical significance limited to an adequately powered analysis; the included three-seed sweep is descriptive only.
 
 After substantial work, update this file’s current state, verification results, and suggested next task so another agent can resume without reconstructing the entire conversation.

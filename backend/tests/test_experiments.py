@@ -2,6 +2,7 @@ import csv
 import json
 
 from leo_dtn.experiments import (
+    seeded_orbital_realization,
     export_events_csv,
     export_metrics_csv,
     export_run_json,
@@ -10,7 +11,7 @@ from leo_dtn.experiments import (
 )
 from leo_dtn.model import ContactInterruption
 from leo_dtn.routing import StaticMinimumHop
-from leo_dtn.scenarios import SECOND, relay_vertical_slice_inputs
+from leo_dtn.scenarios import SECOND, relay_vertical_slice_inputs, scenario_definition
 
 
 def _run(*, interruptions=()):
@@ -89,3 +90,22 @@ def test_selected_routing_policy_is_recorded_with_experiment():
     assert result.manifest.routing_policy == "static_minimum_hop"
     config = json.loads(result.manifest.normalized_configuration_json)
     assert config["routing_policy"] == "static_minimum_hop"
+
+
+def test_orbital_seed_changes_phase_reproducibly_and_preserves_shared_nodes():
+    baseline = scenario_definition("leo-mumbai-new-york")
+    expanded = scenario_definition("leo-expanded-constellation")
+    assert baseline is not None and expanded is not None
+
+    first = seeded_orbital_realization(baseline, 42)
+    repeated = seeded_orbital_realization(baseline, 42)
+    other = seeded_orbital_realization(baseline, 43)
+    expanded_realization = seeded_orbital_realization(expanded, 42)
+    first_phases = {node.node_id: node.orbit.phase_deg for node in first.nodes if node.orbit}
+    repeated_phases = {node.node_id: node.orbit.phase_deg for node in repeated.nodes if node.orbit}
+    other_phases = {node.node_id: node.orbit.phase_deg for node in other.nodes if node.orbit}
+    expanded_phases = {node.node_id: node.orbit.phase_deg for node in expanded_realization.nodes if node.orbit}
+
+    assert first_phases == repeated_phases
+    assert first_phases != other_phases
+    assert all(expanded_phases[node_id] == phase for node_id, phase in first_phases.items())

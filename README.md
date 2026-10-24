@@ -31,4 +31,6 @@ Open [http://localhost:3000](http://localhost:3000). The dashboard uses the API 
 backend/.venv/Scripts/python.exe -m pytest -c backend/pyproject.toml -q backend/tests
 ```
 
+For a guided research workflow, open **Metrics & comparison**. It starts with the baseline preset selected; choose the observation cutoff and 1, 3, or 5 consecutive seeds, run the matched routing study, then download the run-level CSV. See [`docs/final-evaluation.md`](docs/final-evaluation.md) for the recommended method, interpretation, and limitations.
+
 For Unix-like shells, replace `backend/.venv/Scripts/python.exe` with `backend/.venv/bin/python`. Run Python commands through this virtual environment.

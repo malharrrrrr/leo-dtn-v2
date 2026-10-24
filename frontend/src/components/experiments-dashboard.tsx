@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Activity, ArrowUpRight, Check, CircleHelp, Clock3, FlaskConical, LoaderCircle, RadioTower, Route, Scale } from "lucide-react";
+import { Activity, ArrowDownToLine, ArrowUpRight, Check, CircleHelp, Clock3, FlaskConical, LoaderCircle, RadioTower, Route, Scale } from "lucide-react";
 import { compareExperiments, getScenarios } from "@/lib/api";
 import type { ExperimentComparison, Metrics, RoutingPolicy, ScenarioSummary } from "@/lib/contracts";
 
@@ -89,25 +89,73 @@ function primaryWinner(left: Metrics, right: Metrics): { policy: "left" | "right
   return { policy: null, reason: "the primary outcome metrics are tied or unavailable" };
 }
 
+function replicateRange(
+  runs: ExperimentComparison[],
+  scenarioId: string,
+  policy: RoutingPolicy,
+  key: keyof Metrics,
+  format: (value: number | null) => string,
+) {
+  const values = runs.flatMap((run) => {
+    const scenario = run.scenarios.find((item) => item.scenario.scenario_id === scenarioId);
+    const result = scenario?.results.find((item) => item.routing_policy === policy);
+    const value = result?.metrics[key];
+    return typeof value === "number" ? [value] : [];
+  });
+  if (values.length < 2) return null;
+  return `Range ${format(Math.min(...values))}–${format(Math.max(...values))}`;
+}
+
 export function ExperimentsDashboard() {
   const [scenarios, setScenarios] = useState<ScenarioSummary[]>([]);
   const [selectedScenarioIds, setSelectedScenarioIds] = useState<string[]>([]);
   const [comparison, setComparison] = useState<ExperimentComparison | null>(null);
   const [seed, setSeed] = useState(42);
+  const [replicates, setReplicates] = useState(3);
+  const [replicateProgress, setReplicateProgress] = useState(0);
+  const [replicateResults, setReplicateResults] = useState<ExperimentComparison[]>([]);
   const [horizonSeconds, setHorizonSeconds] = useState(defaultHorizonSeconds);
   const [loadingScenarios, setLoadingScenarios] = useState(true);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const runComparison = useCallback(async (scenarioIds: string[], runSeed: number, runHorizon: number) => {
+  const runComparison = useCallback(async (scenarioIds: string[], runSeed: number, runHorizon: number, runCount: number) => {
     if (scenarioIds.length === 0) {
       setError("Select at least one network setting to compare.");
       return;
     }
     setRunning(true);
     setError(null);
+    setComparison(null);
+    setReplicateResults([]);
+    setReplicateProgress(0);
     try {
-      setComparison(await compareExperiments(scenarioIds, runSeed, runHorizon * SECOND));
+      const runs: ExperimentComparison[] = [];
+      for (let index = 0; index < runCount; index += 1) {
+        runs.push(await compareExperiments(scenarioIds, runSeed + index, runHorizon * SECOND));
+        setReplicateProgress(index + 1);
+        setReplicateResults([...runs]);
+      }
+      const first = runs[0];
+      const averaged = {
+        ...first,
+        scenarios: first.scenarios.map((scenario, scenarioIndex) => ({
+          ...scenario,
+          results: scenario.results.map((policyResult, policyIndex) => {
+            const samples = runs.map((run) => run.scenarios[scenarioIndex].results[policyIndex].metrics);
+            const metrics = { ...policyResult.metrics } as Metrics;
+            for (const key of Object.keys(metrics) as (keyof Metrics)[]) {
+              const values = samples.map((sample) => sample[key]);
+              if (values.every((value) => value === null || typeof value === "number")) {
+                const numeric = values.filter((value): value is number => typeof value === "number");
+                (metrics[key] as number | null) = numeric.length ? numeric.reduce((sum, value) => sum + value, 0) / numeric.length : null;
+              }
+            }
+            return { ...policyResult, metrics };
+          }),
+        })),
+      };
+      setComparison(averaged);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "The backend comparison failed.");
       setComparison(null);
@@ -124,9 +172,8 @@ export function ExperimentsDashboard() {
         if (cancelled) return;
         const presetIds = available.map((scenario) => scenario.scenario_id);
         setScenarios(available);
-        setSelectedScenarioIds(presetIds);
+        setSelectedScenarioIds(presetIds.slice(0, 1));
         setLoadingScenarios(false);
-        await runComparison(presetIds, 42, defaultHorizonSeconds);
       } catch (cause) {
         if (!cancelled) {
           setError(cause instanceof Error ? cause.message : "Could not load the scenario catalog.");
@@ -136,7 +183,25 @@ export function ExperimentsDashboard() {
     };
     void load();
     return () => { cancelled = true; };
-  }, [runComparison]);
+  }, []);
+
+  const downloadResults = () => {
+    if (!replicateResults.length) return;
+    const columns = ["scenario_id", "scenario_name", "seed", "horizon_seconds", "routing_policy", "generated", "delivered", "delivery_ratio", "expiration_ratio", "median_latency_us", "mean_hops", "source_rejected", "expired", "undelivered", "contact_utilization", "mean_buffer_bytes"];
+    const rows = replicateResults.flatMap((run) => run.scenarios.flatMap((scenario) => scenario.results.map(({ routing_policy, metrics }) => [
+      scenario.scenario.scenario_id, scenario.scenario.name, run.random_seed, run.horizon_us / SECOND, routing_policy,
+      metrics.generated_count, metrics.delivered_count, metrics.delivery_ratio, metrics.expiration_ratio, metrics.median_delivery_latency_us,
+      metrics.mean_hop_count, metrics.source_rejected_count, metrics.expired_count, metrics.undelivered_count, metrics.contact_utilization_fraction,
+      metrics.mean_total_buffer_occupancy_bytes,
+    ])));
+    const csv = [columns, ...rows].map((row) => row.map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(",")).join("\r\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `leo-dtn-study-seed-${seed}-n-${replicates}.csv`;
+    anchor.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+  };
 
   const toggleScenario = (scenarioId: string) => {
     setSelectedScenarioIds((current) => current.includes(scenarioId)
@@ -149,8 +214,8 @@ export function ExperimentsDashboard() {
       <header className="experiment-hero">
         <div>
           <span className="eyebrow">BACKEND-RUN ROUTING STUDY</span>
-          <h1>Which routing strategy performs better?</h1>
-          <p>Run both algorithms against the same network, traffic, seed, and observation window. Compare delivery outcomes across the project’s LEO presets.</p>
+          <h1>Measure routing under changing contacts</h1>
+          <p>Compare both routing policies on matched LEO network settings. Use multiple deterministic seeds to see whether an observed difference repeats.</p>
         </div>
         <div className="experiment-pair-badge"><Scale size={18} /><span>Matched runs<br /><b>only routing changes</b></span></div>
       </header>
@@ -160,9 +225,13 @@ export function ExperimentsDashboard() {
           <div className="panel-heading"><div className="heading-icon blue"><FlaskConical size={16} /></div><h2>Comparison setup</h2></div>
           <label className="field-label" htmlFor="experiment-seed">Random seed</label>
           <input id="experiment-seed" className="experiment-input" type="number" value={seed} onChange={(event) => setSeed(Number(event.target.value))} />
+          <label className="field-label" htmlFor="experiment-replicates">Seeded repetitions</label>
+          <select id="experiment-replicates" className="experiment-input" value={replicates} onChange={(event) => setReplicates(Number(event.target.value))}><option value={1}>1 run per setting</option><option value={3}>3 runs per setting</option><option value={5}>5 runs per setting</option></select>
+          <small className="experiment-seed-note">Seeds run in order: {Array.from({ length: replicates }, (_, index) => seed + index).join(", ")}</small>
           <label className="field-label" htmlFor="experiment-horizon">Observation window (seconds)</label>
           <input id="experiment-horizon" className="experiment-input" type="number" min={60} max={3600} step={60} value={horizonSeconds} onChange={(event) => setHorizonSeconds(Math.max(60, Math.min(3600, Number(event.target.value) || 60)))} />
           <div className="experiment-setting-heading"><span>Network settings</span><small>{selectedScenarioIds.length} selected</small></div>
+          <div className="experiment-selection-actions"><button type="button" onClick={() => setSelectedScenarioIds(scenarios.map((scenario) => scenario.scenario_id))}>Select all</button><button type="button" onClick={() => setSelectedScenarioIds([])}>Clear</button></div>
           <div className="experiment-scenario-options">
             {loadingScenarios ? <div className="experiment-loading"><LoaderCircle className="spin" size={15} /> Loading presets…</div> : scenarios.map((scenario) => (
               <label className={`experiment-scenario-option ${selectedScenarioIds.includes(scenario.scenario_id) ? "selected" : ""}`} key={scenario.scenario_id}>
@@ -171,21 +240,26 @@ export function ExperimentsDashboard() {
               </label>
             ))}
           </div>
-          <button className="primary full-width experiment-run-button" onClick={() => void runComparison(selectedScenarioIds, seed, horizonSeconds)} disabled={running || loadingScenarios || selectedScenarioIds.length === 0}>
+          <button className="primary full-width experiment-run-button" onClick={() => void runComparison(selectedScenarioIds, seed, horizonSeconds, replicates)} disabled={running || loadingScenarios || selectedScenarioIds.length === 0}>
             {running ? <LoaderCircle className="spin" size={16} /> : <Activity size={16} />}
-            {running ? "Running backend simulations…" : "Run comparison"}
+            {running ? `Running repetition ${replicateProgress + 1} of ${replicates}…` : "Run study"}
           </button>
-          <p className="experiment-run-note">Each selected setting runs both routing policies in the backend. Orbital contacts are planned through the configured bundle TTL; metrics are measured at the selected cutoff.</p>
+          <p className="experiment-run-note">Each seed runs both policies with the same workload and network. Results show the mean across seeds; download the CSV for each individual run. Orbital contacts use the configured geometry model.</p>
         </aside>
 
         <section className="experiment-results-column">
           {error && <div className="scenario-error"><CircleHelp size={16} />{error}</div>}
-          {running && <div className="experiment-progress panel"><LoaderCircle className="spin" size={19} /><div><b>Running matched scenarios</b><span>Each network setting is simulated twice with identical inputs.</span></div></div>}
+          {running && <div className="experiment-progress panel"><LoaderCircle className="spin" size={19} /><div><b>Running matched scenarios · repetition {replicateProgress + 1} of {replicates}</b><span>{selectedScenarioIds.length * 2} backend runs per seed; current result: {replicateResults.length ? "available" : "waiting"}.</span></div></div>}
           {!running && comparison && <>
             <div className="experiment-result-summary">
-              <div><span className="eyebrow">BACKEND RESULTS</span><h2>{comparison.scenarios.length} settings · {comparison.scenarios.length * 2} simulation runs</h2></div>
-              <span className="experiment-run-meta">Seed {comparison.random_seed} <i /> {(comparison.horizon_us / SECOND).toFixed(0)} s cutoff</span>
+              <div><span className="eyebrow">BACKEND RESULTS · MEAN ACROSS {replicateResults.length} SEEDS</span><h2>{comparison.scenarios.length} settings · {comparison.scenarios.length * replicateResults.length * 2} simulation runs</h2></div>
+              <span className="experiment-run-meta">Seeds {replicateResults.map((run) => run.random_seed).join(", ")} <i /> {(comparison.horizon_us / SECOND).toFixed(0)} s cutoff</span>
             </div>
+            <div className="experiment-export-row"><span>Descriptive averages across paired seeds; this small study does not establish statistical significance.</span><button className="secondary" onClick={downloadResults}><ArrowDownToLine size={14} /> Download run-level CSV</button></div>
+            <section className="experiment-chart panel" aria-label="Mean delivery ratio by network setting">
+              <div className="panel-heading"><div className="heading-icon cyan"><Activity size={15} /></div><h2>Mean delivery ratio by setting</h2></div>
+              {comparison.scenarios.map((scenario) => <div className="delivery-chart-row" key={scenario.scenario.scenario_id}><span>{scenario.scenario.name}</span><div className="delivery-bars">{scenario.results.map((result) => <div className="delivery-bar-line" key={result.routing_policy}><small>{result.routing_policy === "contact_aware_earliest_arrival" ? "Contact-aware" : "Static min-hop"}</small><div className="delivery-track"><i className={result.routing_policy === "contact_aware_earliest_arrival" ? "aware" : "baseline"} style={{ width: `${Math.max(0, Math.min(100, (result.metrics.delivery_ratio ?? 0) * 100))}%` }} /></div><b>{result.metrics.delivery_ratio == null ? "—" : `${(result.metrics.delivery_ratio * 100).toFixed(1)}%`}</b></div>)}</div></div>)}
+            </section>
             <div className="experiment-result-list">
               {comparison.scenarios.map((item) => {
                 const left = item.results.find((result) => result.routing_policy === "contact_aware_earliest_arrival");
@@ -214,14 +288,14 @@ export function ExperimentsDashboard() {
                         const advantage = compareMetric(leftValue, rightValue, metric.direction);
                         return <div className="comparison-metric-row" key={metric.key}>
                           <span className="comparison-metric-name">{metric.title}<small>{metric.direction === "higher" ? "Higher is better" : "Lower is better"}</small></span>
-                          <b className={advantage === "left" ? "metric-leading" : ""}>{metric.format(leftValue)}</b>
-                          <b className={advantage === "right" ? "metric-leading" : ""}>{metric.format(rightValue)}</b>
+                          <b className={advantage === "left" ? "metric-leading" : ""}>{metric.format(leftValue)}<small className="metric-range">{replicateRange(replicateResults, item.scenario.scenario_id, left.routing_policy, metric.key, metric.format)}</small></b>
+                          <b className={advantage === "right" ? "metric-leading" : ""}>{metric.format(rightValue)}<small className="metric-range">{replicateRange(replicateResults, item.scenario.scenario_id, right.routing_policy, metric.key, metric.format)}</small></b>
                           <span className={`metric-advantage ${advantage === "tie" || advantage === "na" ? "neutral" : ""}`}>{advantage === "left" ? "Contact-aware" : advantage === "right" ? "Static min-hop" : advantage === "na" ? "Unavailable" : "Tie"}</span>
                         </div>;
                       })}
                       {contextMetrics.map((metric) => <div className="comparison-metric-row contextual" key={metric.key}>
                         <span className="comparison-metric-name">{metric.title}<small>Context, not ranked</small></span>
-                        <b>{metric.format(left.metrics[metric.key])}</b><b>{metric.format(right.metrics[metric.key])}</b><span className="metric-advantage neutral">Context</span>
+                        <b>{metric.format(left.metrics[metric.key])}<small className="metric-range">{replicateRange(replicateResults, item.scenario.scenario_id, left.routing_policy, metric.key, metric.format)}</small></b><b>{metric.format(right.metrics[metric.key])}<small className="metric-range">{replicateRange(replicateResults, item.scenario.scenario_id, right.routing_policy, metric.key, metric.format)}</small></b><span className="metric-advantage neutral">Context</span>
                       </div>)}
                     </div>
 
@@ -250,6 +324,7 @@ export function ExperimentsDashboard() {
           {contextMetrics.map((metric) => <article className="metric-method-card contextual" key={metric.key}><span>{metric.title} · contextual</span><code>{metric.formula}</code><p>{metric.note}</p></article>)}
         </div>
         <p className="methodology-note"><ArrowUpRight size={13} /> Overall ranking is lexicographic: delivery ratio first, median latency second, mean hops third. Buffer occupancy and contact utilization are reported as context because neither has a universally better direction.</p>
+        <div className="study-limitations"><b>How to read this study</b><p>Network presets are controlled examples that change constellation size, buffer capacity, or traffic load relative to the default. The comparison pairs routing policies inside each setting; it does not estimate effects across all possible networks. Pending bundles are counted as undelivered at the cutoff and remain right-censored. Three or five seeds provide descriptive variation only, not a significance test.</p><p>The simulator uses circular two-body satellite motion and spherical-Earth line-of-sight contacts. Contact sampling can miss short windows. No RF link budget, fragmentation, custody acknowledgement, or operational satellite behavior is modelled.</p></div>
       </section>
     </main>
   );

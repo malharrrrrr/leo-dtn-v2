@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import io
 import json
-from dataclasses import asdict, dataclass, is_dataclass
+from dataclasses import asdict, dataclass, is_dataclass, replace
 from enum import Enum
 from typing import Any
 
@@ -44,6 +45,27 @@ class PolicyComparisonResult:
     metrics: MetricReport
 
 
+def seeded_orbital_realization(scenario: ScenarioDefinition, random_seed: int) -> ScenarioDefinition:
+    """Return the reproducible orbital phase realization used by paired studies.
+
+    SHA-256 maps each seed and stable node ID to a phase, so shared satellites
+    retain their phase across controlled preset variants and across runtimes.
+    """
+    if not isinstance(random_seed, int) or isinstance(random_seed, bool):
+        raise ValueError("random seed must be an integer")
+    if not scenario.orbital_contact_generation:
+        return scenario
+    nodes = []
+    for node in scenario.nodes:
+        if node.orbit is None:
+            nodes.append(node)
+            continue
+        key = f"leo-dtn-orbit-phase-v1:{random_seed}:{node.node_id}".encode("utf-8")
+        phase_fraction = int.from_bytes(hashlib.sha256(key).digest()[:8], "big") / 2**64
+        nodes.append(replace(node, orbit=replace(node.orbit, phase_deg=phase_fraction * 360.0)))
+    return replace(scenario, nodes=tuple(nodes))
+
+
 def compare_routing_policies(
     *,
     scenario: ScenarioDefinition,
@@ -55,6 +77,8 @@ def compare_routing_policies(
         raise ValueError("random seed must be an integer")
     if not isinstance(horizon_us, int) or isinstance(horizon_us, bool) or horizon_us <= 0:
         raise ValueError("comparison horizon must be a positive integer number of microseconds")
+
+    scenario = seeded_orbital_realization(scenario, random_seed)
 
     planning_horizon_us = max(
         horizon_us,

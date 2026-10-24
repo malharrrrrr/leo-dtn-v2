@@ -477,8 +477,11 @@ input, select { height: 34px; padding: 0 9px; border-color: #34465a; background:
 .experiment-controls { position: sticky; top: 16px; }
 .experiment-controls .panel-heading { display: flex; align-items: center; }
 .experiment-input { width: 100%; height: 38px; margin-bottom: 2px; border-radius: 8px; }
+.experiment-seed-note { display: block; margin: -1px 0 10px; color: #8497aa; font-size: 9px; }
 .experiment-setting-heading { display: flex; justify-content: space-between; align-items: baseline; margin: 21px 0 9px; color: #d4dfeb; font-size: 11px; font-weight: 650; }
 .experiment-setting-heading small { color: #8192a5; font-size: 9px; font-weight: 500; }
+.experiment-selection-actions { display: flex; justify-content: flex-end; gap: 10px; margin: -3px 2px 8px; }
+.experiment-selection-actions button { padding: 0; border: 0; background: none; color: #83bcea; font-size: 9px; cursor: pointer; }
 .experiment-scenario-options { display: grid; gap: 7px; }
 .experiment-scenario-option { display: flex; align-items: flex-start; gap: 9px; padding: 10px; border: 1px solid rgba(112,139,164,.15); border-radius: 9px; background: rgba(9,17,26,.5); cursor: pointer; }
 .experiment-scenario-option.selected { border-color: rgba(79,160,221,.4); background: rgba(29,80,119,.18); }
@@ -496,6 +499,21 @@ input, select { height: 34px; padding: 0 9px; border-color: #34465a; background:
 .experiment-result-summary h2 { margin: 5px 0 0; font-size: 17px; letter-spacing: -.025em; }
 .experiment-run-meta { display: flex; align-items: center; gap: 8px; color: #8fa1b4; font-size: 10px; white-space: nowrap; }
 .experiment-run-meta i { width: 3px; height: 3px; border-radius: 50%; background: #59b5ff; }
+.experiment-export-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: -2px 0 12px; color: #8598ab; font-size: 9px; }
+.experiment-export-row .secondary { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.experiment-chart { margin-bottom: 12px; }
+.experiment-chart .panel-heading { display: flex; align-items: center; }
+.delivery-chart-row { display: grid; grid-template-columns: minmax(120px, .7fr) minmax(250px, 1.3fr); align-items: center; gap: 16px; padding: 9px 0; border-bottom: 1px solid rgba(108,132,154,.1); }
+.delivery-chart-row:last-child { border-bottom: 0; }
+.delivery-chart-row > span { color: #cfdeeb; font-size: 10px; }
+.delivery-bars { display: grid; gap: 6px; }
+.delivery-bar-line { display: grid; grid-template-columns: 90px minmax(60px, 1fr) 42px; align-items: center; gap: 8px; }
+.delivery-bar-line small { color: #8d9fb0; font-size: 8px; }
+.delivery-bar-line b { color: #c6d4e0; font: 9px var(--font-plex-mono), monospace; text-align: right; }
+.delivery-track { height: 7px; overflow: hidden; border-radius: 8px; background: rgba(112,139,164,.15); }
+.delivery-track i { display: block; height: 100%; min-width: 0; border-radius: inherit; }
+.delivery-track i.aware { background: linear-gradient(90deg, #36a8e4, #7acbff); }
+.delivery-track i.baseline { background: linear-gradient(90deg, #8770d7, #b7a5ff); }
 .experiment-result-list { display: grid; gap: 12px; }
 .scenario-comparison-card { padding: 16px; }
 .scenario-comparison-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
@@ -513,6 +531,7 @@ input, select { height: 34px; padding: 0 9px; border-color: #34465a; background:
 .comparison-metric-name { display: grid; gap: 3px; color: #d3dfeb; font-size: 10px; }
 .comparison-metric-name small { color: #8193a5; font-size: 8px; }
 .comparison-metric-row > b { color: #bbc9d6; font-family: var(--font-plex-mono), monospace; font-size: 11px; font-weight: 550; }
+.comparison-metric-row > b .metric-range { display: block; margin-top: 3px; color: #76899c; font-family: var(--font-geist-sans), sans-serif; font-size: 8px; font-weight: 450; white-space: nowrap; }
 .comparison-metric-row > b.metric-leading { color: #75d8b4; }
 .metric-advantage { color: #7cd9b8; font-size: 9px; }
 .metric-advantage.neutral { color: #8495a8; }
@@ -536,6 +555,9 @@ input, select { height: 34px; padding: 0 9px; border-color: #34465a; background:
 .metric-method-card.contextual { border-style: dashed; }
 .methodology-note { display: flex; align-items: flex-start; gap: 7px; margin: 12px 1px 0; color: #94a6b8; font-size: 9px; line-height: 1.6; }
 .methodology-note svg { flex: 0 0 13px; color: #71c6ff; margin-top: 1px; }
+.study-limitations { margin-top: 14px; padding: 13px 14px; border: 1px solid rgba(112,139,164,.16); border-radius: 9px; background: rgba(8,15,23,.3); }
+.study-limitations b { color: #d1dfeb; font-size: 10px; }
+.study-limitations p { margin: 6px 0 0; color: #91a3b5; font-size: 9px; line-height: 1.65; }
 
 @media (max-width: 1250px) {
   .dashboard-grid { height: auto; }
@@ -558,6 +580,8 @@ input, select { height: 34px; padding: 0 9px; border-color: #34465a; background:
   .policy-headings > :last-child, .comparison-metric-row > :last-child { display: none; }
   .scenario-comparison-header { flex-direction: column; }
   .experiment-result-summary { align-items: flex-start; flex-direction: column; }
+  .experiment-export-row { align-items: flex-start; flex-direction: column; }
+  .delivery-chart-row { grid-template-columns: minmax(0, 1fr); gap: 7px; }
 }
 @media (max-width: 480px) {
   .metric-method-grid { grid-template-columns: minmax(0, 1fr); }

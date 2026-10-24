@@ -24,13 +24,13 @@ No deadlines are assigned. Each milestone has an independently checkable exit co
 
 **Acceptance:** focused tests cover each boundary and simultaneous expiry/delivery. A contact must remain open until modeled last-bit arrival (serialization plus propagation); a close before or at arrival fails the attempt and retains the complete bundle at its sender for retry. Failed or infeasible contacts cannot create a delivery; finite buffers are enforced; routing can be replaced without changing engine event semantics.
 
-## 4. Metrics and reproducible experiments (engine support and paired preset comparison implemented; broader repeated-run analysis pending)
+## 4. Metrics and reproducible experiments (paired seeded phase sweeps and reference output implemented; further study pending)
 
 **Depends on:** milestones 2–3.
 
-**Deliverables:** metric aggregation, scenario/config schema, explicit random seed, run manifest, JSON/CSV exports, experiment runner callable locally, and a backend comparison endpoint for both routing policies across selectable presets. The Metrics & comparison view reports paired results, formulas, interpretation, and the cutoff/censoring caveat.
+**Deliverables:** metric aggregation, scenario/config schema, explicit random seed, run manifest, JSON/CSV exports, experiment runner callable locally, and a backend comparison endpoint for both routing policies across selectable presets. Paired comparisons use the documented versioned seeded phase realization. The Metrics & comparison view supports 1, 3, or 5 consecutive seeds, displays means and delivery-ratio charts, and exports run-level CSV data. A reproducible three-seed reference output is included.
 
-**Acceptance:** hand-calculated fixtures validate denominators and cutoff cases; repeated seeded runs produce identical manifests/results; comparisons vary one declared factor at a time or document factorial design.
+**Acceptance:** hand-calculated fixtures validate denominators and cutoff cases; repeated seeded runs produce identical manifests/results; comparisons vary one declared factor at a time or document factorial design; reference results and exact settings are included with the project.
 
 ## 5. FastAPI integration and controls (initial integration complete)
 
@@ -40,7 +40,7 @@ No deadlines are assigned. Each milestone has an independently checkable exit co
 
 **Acceptance:** API/engine integration tests verify command validation, state transitions, response snapshots, event cursors, exports, and that API code contains no forwarding/routing semantics. The API tests run against a local Uvicorn subprocess to exercise the real HTTP boundary.
 
-## 6. Frontend dashboard and visualization (first pass and metrics comparison implemented; interaction validation pending)
+## 6. Frontend dashboard and visualization (multi-seed analysis and evaluation guidance implemented; interaction validation pending)
 
 **Depends on:** API response contract and stable snapshots.
 
@@ -56,11 +56,11 @@ No deadlines are assigned. Each milestone has an independently checkable exit co
 
 **Acceptance:** positions change deterministically with simulated time; generated contacts obey the declared spherical-Earth and minimum-elevation model, disappear at computed window end, the rolling plan continues beyond its minimum horizon and covers bundle TTL, and identical inputs replay identically. A regression proves the initial route uses an early viable contact even when delivery requires contacts beyond the requested minimum horizon. Recurring bundle IDs and generation times are deterministic. State clearly that this is simplified orbital propagation, not a high-fidelity operational model. Validate long-run cost and browser playback interactively before calling the milestone complete.
 
-## 8. End-to-end validation and academic evaluation
+## 8. End-to-end validation and academic evaluation (workflow and reference run delivered; broader evaluation pending)
 
 **Depends on:** milestones 1–7.
 
-**Deliverables:** end-to-end scenarios, reproducible experiment outputs, limitations, architecture/model documentation, and report-ready plots/tables.
+**Deliverables:** end-to-end scenarios, reproducible experiment outputs, limitations, architecture/model documentation, a documented final-evaluation workflow, and report-ready plots/tables.
 
 **Acceptance:** documented experiments answer the research question with repeated runs or controlled deterministic scenarios, results can be regenerated from manifests, and claims match implemented behavior. No advanced feature is required unless it supports a stated evaluation objective.
 
