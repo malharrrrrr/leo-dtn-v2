@@ -160,10 +160,10 @@ function SavedReferencePanel() {
 
   return <section id="saved-reference-comparison" className="saved-reference panel">
     <div className="experiment-result-summary">
-      <div><span className="eyebrow">SAVED BACKEND REFERENCE · FIVE SEEDS</span><h2>Instant comparison for the recommended setup</h2></div>
-      <span className="experiment-run-meta">Seeds 42–46 <i /> 3,600 s cutoff</span>
+      <div><span className="eyebrow">SAVED BACKEND REFERENCE · BASELINE</span><h2>Instant comparison for the baseline setup</h2></div>
+      <span className="experiment-run-meta">Seeds 42–46 <i /> 28,800 s (8 hours)</span>
     </div>
-    <p className="saved-reference-intro">This fixed reference is available while live studies run. It compares both policies on the same seeded network and traffic in each setting; only routing policy changes.</p>
+    <p className="saved-reference-intro">This fixed baseline reference is available while live studies run. Both policies use the same seeded network and traffic; only routing policy changes. Its 8-hour observation window is longer than the live study control, which currently allows up to 1 hour.</p>
     <section className="experiment-chart saved-reference-chart" aria-label="Saved mean delivery ratio comparison">
       <div className="panel-heading"><div className="heading-icon cyan"><Activity size={15} /></div><h3>Mean delivery ratio across five seeds</h3></div>
       {savedReferenceComparison.map((scenario) => <div className="delivery-chart-row" key={scenario.id}>
@@ -191,7 +191,7 @@ function SavedReferencePanel() {
         <p className="saved-reference-inference">At this cutoff, {scenario.policies[0].deliveryRatio > scenario.policies[1].deliveryRatio ? "contact-aware earliest arrival delivered a larger share" : "the policies delivered the same share"}. This descriptive reference does not establish statistical significance.</p>
       </article>)}
     </div>
-    <p className="saved-reference-note">Averages and ranges are across the five individual seeded runs. Bundles still pending at the cutoff count as undelivered but not expired; source rejections are terminal and are shown separately. Contact utilization and buffer occupancy are context measures.</p>
+    <p className="saved-reference-note">Averages and ranges are across five individual seeded runs of the baseline preset. Bundles still pending at the cutoff count as undelivered but not expired; source rejections are terminal and are shown separately. Contact utilization and buffer occupancy are context measures. This longer-horizon reference is illustrative; use a live study and its CSV for the selected settings.</p>
   </section>;
 }
 
@@ -335,7 +335,7 @@ export function ExperimentsDashboard() {
             {running ? `Running repetition ${replicateProgress + 1} of ${replicates}…` : "Run study"}
           </button>
           <p className="experiment-run-note">Each seed runs both policies with the same workload and network. Results show the mean across seeds; download the CSV for each individual run. Orbital contacts use the configured geometry model.</p>
-          <button className="secondary full-width saved-reference-toggle" type="button" aria-expanded={showReference} aria-controls="saved-reference-comparison" onClick={() => setShowReference((visible) => !visible)}><BookOpen size={15} />{showReference ? "Hide saved comparison" : "Show saved five-seed comparison"}</button>
+          <button className="secondary full-width saved-reference-toggle" type="button" aria-expanded={showReference} aria-controls="saved-reference-comparison" onClick={() => setShowReference((visible) => !visible)}><BookOpen size={15} />{showReference ? "Hide saved comparison" : "Show saved 8-hour baseline comparison"}</button>
         </aside>
 
         <section className="experiment-results-column">
