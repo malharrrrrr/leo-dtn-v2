@@ -9,7 +9,9 @@ type Props = {
   snapshot: SimulationSnapshot | null;
   selectedBundleId: string | null;
   followPacket: boolean;
+  followNodeId: string | null;
   onSelectNode: (nodeId: string) => void;
+  onSelectBundle: (bundleId: string) => void;
 };
 
 const EARTH_RADIUS_KM = 6371;
@@ -96,6 +98,42 @@ function bundlePosition(bundle: BundleState | undefined, snapshot: SimulationSna
   return source ? toScene(source.position_km, source.node_id, source.kind) : null;
 }
 
+function bundleStackNode(bundle: BundleState): string | null {
+  if (bundle.status === "queued") return bundle.holder;
+  if (bundle.status === "delivered") return bundle.destination;
+  if (bundle.status === "expired" || bundle.status === "rejected_at_source") {
+    return bundle.holder ?? bundle.forwarding_history.at(-1)?.to_node ?? bundle.source;
+  }
+  return null;
+}
+
+function bundleColor(bundleId: string): THREE.Color {
+  let hash = 0;
+  for (const character of bundleId) hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
+  return new THREE.Color().setHSL((hash % 360) / 360, 0.82, 0.62);
+}
+
+function makeBundleMarker(bundleId: string, selected: boolean): THREE.Group {
+  const marker = new THREE.Group();
+  marker.userData.bundleId = bundleId;
+  const color = bundleColor(bundleId);
+  const core = new THREE.Mesh(
+    new THREE.OctahedronGeometry(selected ? 0.062 : 0.038, 1),
+    new THREE.MeshBasicMaterial({ color, depthTest: false }),
+  );
+  core.renderOrder = 12;
+  marker.add(core);
+  const halo = new THREE.Mesh(
+    new THREE.TorusGeometry(selected ? 0.095 : 0.061, selected ? 0.008 : 0.004, 6, 20),
+    new THREE.MeshBasicMaterial({ color: selected ? 0xffffff : color, transparent: true, opacity: selected ? 0.95 : 0.62, depthTest: false }),
+  );
+  halo.rotation.x = Math.PI / 2;
+  halo.renderOrder = 11;
+  marker.add(halo);
+  marker.traverse((part) => { part.userData.bundleId = bundleId; });
+  return marker;
+}
+
 function addPickTag(object: THREE.Object3D, nodeId: string) {
   object.userData.nodeId = nodeId;
   object.traverse((child) => { child.userData.nodeId = nodeId; });
@@ -134,11 +172,11 @@ function clearsEarth(a: THREE.Vector3, b: THREE.Vector3): boolean {
   return a.clone().addScaledVector(ab, t).lengthSq() >= 1.001 * 1.001;
 }
 
-export function NetworkScene({ snapshot, selectedBundleId, followPacket, onSelectNode }: Props) {
+export function NetworkScene({ snapshot, selectedBundleId, followPacket, followNodeId, onSelectNode, onSelectBundle }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<{ nodeId: string; x: number; y: number } | null>(null);
-  const stateRef = useRef({ snapshot, selectedBundleId, followPacket, onSelectNode });
-  stateRef.current = { snapshot, selectedBundleId, followPacket, onSelectNode };
+  const stateRef = useRef({ snapshot, selectedBundleId, followPacket, followNodeId, onSelectNode, onSelectBundle });
+  stateRef.current = { snapshot, selectedBundleId, followPacket, followNodeId, onSelectNode, onSelectBundle };
 
   useEffect(() => {
     const host = hostRef.current;
@@ -193,12 +231,14 @@ export function NetworkScene({ snapshot, selectedBundleId, followPacket, onSelec
 
     const network = new THREE.Group(); scene.add(network);
     const nodeGlyphs = new Map<string, THREE.Group>();
+    const bundleMarkers = new Map<string, THREE.Group>();
     const pickNode = (event: PointerEvent) => {
       const rect = renderer.domElement.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
       camera.updateMatrixWorld();
       let nearest: { nodeId: string; distance: number; depth: number } | null = null;
+      let nearestBundle: { bundleId: string; distance: number; depth: number } | null = null;
       for (const [nodeId, glyph] of nodeGlyphs) {
         const screen = glyph.getWorldPosition(new THREE.Vector3()).project(camera);
         if (screen.z < -1 || screen.z > 1) continue;
@@ -209,18 +249,30 @@ export function NetworkScene({ snapshot, selectedBundleId, followPacket, onSelec
           nearest = { nodeId, distance, depth: screen.z };
         }
       }
-      return { nodeId: nearest?.nodeId, x, y };
+      for (const [bundleId, marker] of bundleMarkers) {
+        const screen = marker.getWorldPosition(new THREE.Vector3()).project(camera);
+        if (screen.z < -1 || screen.z > 1) continue;
+        const screenX = (screen.x + 1) * rect.width / 2;
+        const screenY = (1 - screen.y) * rect.height / 2;
+        const distance = Math.hypot(screenX - x, screenY - y);
+        if (distance <= 22 && (!nearestBundle || distance < nearestBundle.distance || (distance === nearestBundle.distance && screen.z < nearestBundle.depth))) {
+          nearestBundle = { bundleId, distance, depth: screen.z };
+        }
+      }
+      return { nodeId: nearest?.nodeId, bundleId: nearestBundle?.bundleId, bundleDistance: nearestBundle?.distance, nodeDistance: nearest?.distance, x, y };
     };
     const onPointerMove = (event: PointerEvent) => {
       const picked = pickNode(event);
+      renderer.domElement.style.cursor = picked.bundleId || picked.nodeId ? "pointer" : "grab";
       setHover((current) => picked.nodeId
         ? current?.nodeId === picked.nodeId && current.x === picked.x && current.y === picked.y ? current : picked as { nodeId: string; x: number; y: number }
         : current ? null : current);
     };
-    const onPointerLeave = () => setHover(null);
+    const onPointerLeave = () => { renderer.domElement.style.cursor = "grab"; setHover(null); };
     const onPointerDown = (event: PointerEvent) => {
       const picked = pickNode(event);
-      if (picked.nodeId) stateRef.current.onSelectNode(picked.nodeId);
+      if (picked.bundleId && (picked.nodeDistance === undefined || picked.bundleDistance! <= picked.nodeDistance)) stateRef.current.onSelectBundle(picked.bundleId);
+      else if (picked.nodeId) stateRef.current.onSelectNode(picked.nodeId);
     };
     renderer.domElement.addEventListener("pointermove", onPointerMove);
     renderer.domElement.addEventListener("pointerleave", onPointerLeave);
@@ -272,7 +324,7 @@ export function NetworkScene({ snapshot, selectedBundleId, followPacket, onSelec
         }
         contactLines.clear();
         contactArrows.clear();
-        nodeGlyphs.clear(); satelliteTrails.clear(); pathLines.length = 0; packetTrail = null; lastTrailTime = -1;
+        nodeGlyphs.clear(); bundleMarkers.clear(); satelliteTrails.clear(); pathLines.length = 0; packetTrail = null; lastTrailTime = -1;
         packetMarker = null;
         topologySignature = nextTopologySignature;
         lastBundleId = data.selectedBundleId;
@@ -289,6 +341,12 @@ export function NetworkScene({ snapshot, selectedBundleId, followPacket, onSelec
               trail.visible = false;
               network.add(trail); satelliteTrails.set(node.node_id, { line: trail, points: [] });
             }
+          }
+
+          for (const bundle of data.snapshot.bundles) {
+            const marker = makeBundleMarker(bundle.bundle_id, bundle.bundle_id === data.selectedBundleId);
+            bundleMarkers.set(bundle.bundle_id, marker);
+            network.add(marker);
           }
 
           for (const contact of data.snapshot.contacts) {
@@ -321,15 +379,7 @@ export function NetworkScene({ snapshot, selectedBundleId, followPacket, onSelec
           }
 
           if (selectedBundle) {
-            packetMarker = new THREE.Group();
-            const packetColor = selectedBundle.status === "delivered" ? 0x4ff2a4 : 0xffb547;
-            const core = new THREE.Mesh(new THREE.OctahedronGeometry(0.065, 1), new THREE.MeshBasicMaterial({ color: packetColor }));
-            core.renderOrder = 10; packetMarker.add(core);
-            const ring = new THREE.Mesh(new THREE.TorusGeometry(0.105, 0.009, 8, 28), new THREE.MeshBasicMaterial({ color: packetColor, depthWrite: false }));
-            ring.rotation.x = Math.PI / 2; ring.renderOrder = 9; packetMarker.add(ring);
-            const glow = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 12), new THREE.MeshBasicMaterial({ color: packetColor, transparent: true, opacity: 0.17, depthWrite: false }));
-            glow.name = "packet-glow"; glow.renderOrder = 8; packetMarker.add(glow);
-            network.add(packetMarker);
+            packetMarker = bundleMarkers.get(selectedBundle.bundle_id) ?? null;
             packetTrail = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineDashedMaterial({ color: 0xffd166, dashSize: 0.035, gapSize: 0.02, transparent: true, opacity: 0.95 }));
             packetTrail.renderOrder = 8; network.add(packetTrail);
           }
@@ -395,13 +445,35 @@ export function NetworkScene({ snapshot, selectedBundleId, followPacket, onSelec
           const arrow = contactArrows.get(contact.contact_id);
           if (arrow) (arrow.material as THREE.MeshBasicMaterial).color.set(contactColor);
         }
+        const bundlesAtNode = new Map<string, BundleState[]>();
+        for (const bundle of data.snapshot.bundles) {
+          if (!bundleMarkers.has(bundle.bundle_id)) {
+            const marker = makeBundleMarker(bundle.bundle_id, bundle.bundle_id === data.selectedBundleId);
+            bundleMarkers.set(bundle.bundle_id, marker);
+            network.add(marker);
+          }
+          const stackNode = bundleStackNode(bundle);
+          if (!stackNode) continue;
+          const group = bundlesAtNode.get(stackNode) ?? [];
+          group.push(bundle);
+          bundlesAtNode.set(stackNode, group);
+        }
+        for (const bundle of data.snapshot.bundles) {
+          const marker = bundleMarkers.get(bundle.bundle_id);
+          const position = bundlePosition(bundle, data.snapshot);
+          if (!marker || !position) continue;
+          const stackNode = bundleStackNode(bundle);
+          const group = stackNode ? bundlesAtNode.get(stackNode) ?? [] : [];
+          if (group.length > 1) {
+            const stackIndex = group.findIndex((item) => item.bundle_id === bundle.bundle_id);
+            const angle = 2 * Math.PI * stackIndex / group.length;
+            position.add(new THREE.Vector3(Math.cos(angle) * 0.09, Math.sin(angle) * 0.09, 0));
+          }
+          marker.position.copy(position);
+        }
+
         const packet = bundlePosition(selectedBundle, data.snapshot);
         if (packet && packetMarker) {
-          packetMarker.position.copy(packet);
-          const packetColor = selectedBundle?.status === "delivered" ? 0x4ff2a4 : 0xffb547;
-          packetMarker.children.forEach((part) => {
-            if (part instanceof THREE.Mesh && part.material instanceof THREE.MeshBasicMaterial) part.material.color.set(packetColor);
-          });
           if (data.followPacket) {
             // Keep Earth fixed in simulation space and move the camera frame to the
             // engine-reported bundle position. This brings far-side bundle traffic
@@ -417,8 +489,15 @@ export function NetworkScene({ snapshot, selectedBundleId, followPacket, onSelec
             packetTrail.computeLineDistances(); packetTrail.visible = true;
           } else if (packetTrail) packetTrail.visible = false;
         }
+        const followedNode = data.followNodeId ? positions.get(data.followNodeId) : undefined;
+        if (followedNode) {
+          const range = Math.max(1.8, camera.position.distanceTo(controls.target));
+          controls.target.copy(followedNode);
+          camera.position.copy(followedNode.clone().normalize().multiplyScalar(followedNode.length() + range));
+        } else if (!data.followPacket) {
+          controls.target.lerp(new THREE.Vector3(0, 0, 0), 0.04);
+        }
       }
-      if (!data.followPacket) controls.target.lerp(new THREE.Vector3(0, 0, 0), 0.04);
       controls.update();
       renderer.render(scene, camera);
     };

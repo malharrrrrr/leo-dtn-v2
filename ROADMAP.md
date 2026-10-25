@@ -22,15 +22,15 @@ No deadlines are assigned. Each milestone has an independently checkable exit co
 
 **Deliverables:** admission/overflow, TTL and expiry, interrupted transmission behavior, duplicate/loop rules, resource contention, baseline and contact-aware policy interfaces.
 
-**Acceptance:** focused tests cover each boundary and simultaneous expiry/delivery. Failed or infeasible contacts cannot create a delivery; finite buffers are enforced; routing can be replaced without changing engine event semantics.
+**Acceptance:** focused tests cover each boundary and simultaneous expiry/delivery. A contact must remain open until modeled last-bit arrival (serialization plus propagation); a close before or at arrival fails the attempt and retains the complete bundle at its sender for retry. Failed or infeasible contacts cannot create a delivery; finite buffers are enforced; routing can be replaced without changing engine event semantics.
 
-## 4. Metrics and reproducible experiments (engine support complete; dashboard analysis pending)
+## 4. Metrics and reproducible experiments (paired seeded phase sweeps and reference output implemented; further study pending)
 
 **Depends on:** milestones 2–3.
 
-**Deliverables:** metric aggregation, scenario/config schema, explicit random seed, run manifest, JSON/CSV exports, and experiment runner callable locally.
+**Deliverables:** metric aggregation, scenario/config schema, explicit random seed, run manifest, JSON/CSV exports, experiment runner callable locally, and a backend comparison endpoint for both routing policies across selectable presets. Paired comparisons use the documented versioned seeded phase realization. The Metrics & comparison view supports 1, 3, or 5 consecutive seeds, displays means and delivery-ratio charts, and exports run-level CSV data. A reproducible three-seed reference output is included.
 
-**Acceptance:** hand-calculated fixtures validate denominators and cutoff cases; repeated seeded runs produce identical manifests/results; comparisons vary one declared factor at a time or document factorial design.
+**Acceptance:** hand-calculated fixtures validate denominators and cutoff cases; repeated seeded runs produce identical manifests/results; comparisons vary one declared factor at a time or document factorial design; reference results and exact settings are included with the project.
 
 ## 5. FastAPI integration and controls (initial integration complete)
 
@@ -40,13 +40,13 @@ No deadlines are assigned. Each milestone has an independently checkable exit co
 
 **Acceptance:** API/engine integration tests verify command validation, state transitions, response snapshots, event cursors, exports, and that API code contains no forwarding/routing semantics. The API tests run against a local Uvicorn subprocess to exercise the real HTTP boundary.
 
-## 6. Frontend dashboard and visualization (first pass needs functional/visual repair)
+## 6. Frontend dashboard and visualization (multi-seed analysis, evaluation guidance, and model guide implemented; broader interaction validation pending)
 
 **Depends on:** API response contract and stable snapshots.
 
-**Deliverables:** implemented first dashboard slice with three-region dark layout; routing/config controls; add/remove and explicit/seeded-random satellite placement; 3D globe and topology views; playback/time controls; selected bundle/node/network panels; metrics and empty/loading/error states. A geographic map is deferred because coordinates are scene-frame XYZ, not latitude/longitude. In 3D, Earth remains stationary unless the user rotates the view; packet-follow adjusts the camera target from engine state.
+**Deliverables:** implemented first dashboard slice with three-region dark layout; routing/config controls; add/remove and explicit/seeded-random satellite placement; 3D globe and topology views; playback/time controls; selected bundle/node/network panels; metrics and empty/loading/error states; an API-backed preset library using the same moving Mumbai–New York LEO model as the Simulation default, with controlled variants for satellite count, buffer capacity, and traffic. The Metrics & comparison view runs both routing policies against matched backend scenarios and presents ranking, key metrics, formulas, and inference. The About page explains the end-to-end workflow, orbital and contact geometry, bundle forwarding, routing, event time, metrics, reproducibility, assumptions, and glossary. Presets are inspectable and load into next-run configuration without starting a run. The fixed-contact relay vertical slice remains an engine fixture, not a displayed orbital scenario. A geographic map is deferred because coordinates are scene-frame XYZ, not latitude/longitude. In 3D, Earth remains stationary unless the user rotates the view; packet-follow adjusts the camera target from engine state.
 
-**Acceptance:** frontend uses engine snapshots for orbital state, contact activity, and bundle behavior; handles changing satellite counts without fixed-slot assumptions; seeded placement produces identical elements; and topology edits apply before run creation. Earth remains fixed; manual rotation works; satellites visibly move; geometry-derived links appear only while in line of sight and disappear when visibility ends; packet-follow keeps a selected bundle in view and marker movement follows actual active transmission state. Link/bundle history remains accurate, simulation lifecycle states are handled, and layout is usable at ordinary laptop widths. Type-check, lint, production build, and interaction-level frontend tests pass.
+**Acceptance:** frontend uses engine snapshots for orbital state, contact activity, and bundle behavior; handles changing satellite counts without fixed-slot assumptions; seeded placement produces identical elements; topology edits apply before run creation; and preset catalog/detail views use API-returned configuration and metadata. Loading a preset changes next-run configuration without starting or mutating a run. Earth remains fixed; manual rotation works; satellites visibly move; geometry-derived links appear only while in line of sight and disappear when visibility ends; packet-follow keeps a selected bundle in view and marker movement follows actual active transmission state. The right panel retains successful transfer hops grouped by bundle across the in-memory run, and selecting a bundle/hop opens that bundle's forwarding path. Playback has state-aware play/pause, single-event stepping, reset, and an API-backed speed selector that changes display pacing without changing engine semantics. Link/bundle history remains accurate, simulation lifecycle states are handled, and layout is usable at ordinary laptop widths. The About page is navigable from the dashboard and gives an understandable, technically accurate account of implemented equations, metric formulas, and limitations. Type-check, lint, production build, and interaction-level frontend tests pass.
 
 ## 7. Circular orbit, geometry-derived contacts, and continuous playback (core behavior implemented; validation in progress)
 
@@ -56,11 +56,11 @@ No deadlines are assigned. Each milestone has an independently checkable exit co
 
 **Acceptance:** positions change deterministically with simulated time; generated contacts obey the declared spherical-Earth and minimum-elevation model, disappear at computed window end, the rolling plan continues beyond its minimum horizon and covers bundle TTL, and identical inputs replay identically. A regression proves the initial route uses an early viable contact even when delivery requires contacts beyond the requested minimum horizon. Recurring bundle IDs and generation times are deterministic. State clearly that this is simplified orbital propagation, not a high-fidelity operational model. Validate long-run cost and browser playback interactively before calling the milestone complete.
 
-## 8. End-to-end validation and academic evaluation
+## 8. End-to-end validation and academic evaluation (workflow and reference run delivered; broader evaluation pending)
 
 **Depends on:** milestones 1–7.
 
-**Deliverables:** end-to-end scenarios, reproducible experiment outputs, limitations, architecture/model documentation, and report-ready plots/tables.
+**Deliverables:** end-to-end scenarios, reproducible experiment outputs, limitations, architecture/model documentation, a documented final-evaluation workflow, and report-ready plots/tables.
 
 **Acceptance:** documented experiments answer the research question with repeated runs or controlled deterministic scenarios, results can be regenerated from manifests, and claims match implemented behavior. No advanced feature is required unless it supports a stated evaluation objective.
 

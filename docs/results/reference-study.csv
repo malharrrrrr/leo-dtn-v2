@@ -1,0 +1,31 @@
+scenario_id,scenario_name,seed,horizon_seconds,routing_policy,generated_count,delivered_count,undelivered_count,expired_count,delivery_ratio,expiration_ratio,median_delivery_latency_us,mean_hop_count,contact_utilization_fraction,mean_total_buffer_occupancy_bytes
+leo-mumbai-new-york,Mumbai–New York · baseline,42,3600.0,contact_aware_earliest_arrival,60,0,60,0,0.0,0.0,,,0.0012294367881732062,1523333333.3333333
+leo-mumbai-new-york,Mumbai–New York · baseline,42,3600.0,static_minimum_hop,60,0,60,0,0.0,0.0,,,0.0,1523333333.3333333
+leo-mumbai-new-york,Mumbai–New York · baseline,43,3600.0,contact_aware_earliest_arrival,60,0,60,0,0.0,0.0,,,0.004888452116129531,1523333333.3333333
+leo-mumbai-new-york,Mumbai–New York · baseline,43,3600.0,static_minimum_hop,60,0,60,0,0.0,0.0,,,0.0,1523333333.3333333
+leo-mumbai-new-york,Mumbai–New York · baseline,44,3600.0,contact_aware_earliest_arrival,60,18,42,0,0.3,0.0,2963312100.0,4,0.00794402249448078,1492161358.3333333
+leo-mumbai-new-york,Mumbai–New York · baseline,44,3600.0,static_minimum_hop,60,0,60,0,0.0,0.0,,,0.0,1523333333.3333333
+leo-sparse-constellation,Mumbai–New York · sparse constellation,42,3600.0,contact_aware_earliest_arrival,60,4,56,0,0.06666666666666667,0.0,1123726033.0,4,0.006842381435289862,1390873668.5
+leo-sparse-constellation,Mumbai–New York · sparse constellation,42,3600.0,static_minimum_hop,60,0,60,0,0.0,0.0,,,0.0,1523333333.3333333
+leo-sparse-constellation,Mumbai–New York · sparse constellation,43,3600.0,contact_aware_earliest_arrival,60,0,60,0,0.0,0.0,,,0.0,1523333333.3333333
+leo-sparse-constellation,Mumbai–New York · sparse constellation,43,3600.0,static_minimum_hop,60,0,60,0,0.0,0.0,,,0.0,1523333333.3333333
+leo-sparse-constellation,Mumbai–New York · sparse constellation,44,3600.0,contact_aware_earliest_arrival,60,0,60,0,0.0,0.0,,,0.0,1523333333.3333333
+leo-sparse-constellation,Mumbai–New York · sparse constellation,44,3600.0,static_minimum_hop,60,0,60,0,0.0,0.0,,,0.0,1523333333.3333333
+leo-limited-buffers,Mumbai–New York · limited buffers,42,3600.0,contact_aware_earliest_arrival,60,0,60,0,0.0,0.0,,,0.036806263845935355,1523333333.3333333
+leo-limited-buffers,Mumbai–New York · limited buffers,42,3600.0,static_minimum_hop,60,0,60,0,0.0,0.0,,,0.0,1523333333.3333333
+leo-limited-buffers,Mumbai–New York · limited buffers,43,3600.0,contact_aware_earliest_arrival,60,0,60,0,0.0,0.0,,,0.010639572252752508,1523333333.3333333
+leo-limited-buffers,Mumbai–New York · limited buffers,43,3600.0,static_minimum_hop,60,0,60,0,0.0,0.0,,,0.0,1523333333.3333333
+leo-limited-buffers,Mumbai–New York · limited buffers,44,3600.0,contact_aware_earliest_arrival,60,1,59,0,0.016666666666666666,0.0,3439312100,4,0.013902039365341365,1521129334.7222223
+leo-limited-buffers,Mumbai–New York · limited buffers,44,3600.0,static_minimum_hop,60,0,60,0,0.0,0.0,,,0.0,1523333333.3333333
+leo-high-traffic,Mumbai–New York · high traffic,42,3600.0,contact_aware_earliest_arrival,240,0,240,0,0.0,0.0,,,0.008913416714255743,9359194444.444445
+leo-high-traffic,Mumbai–New York · high traffic,42,3600.0,static_minimum_hop,240,0,240,0,0.0,0.0,,,0.0,7931944444.444445
+leo-high-traffic,Mumbai–New York · high traffic,43,3600.0,contact_aware_earliest_arrival,240,0,240,0,0.0,0.0,,,0.01035201624592136,8997694444.444445
+leo-high-traffic,Mumbai–New York · high traffic,43,3600.0,static_minimum_hop,240,0,240,0,0.0,0.0,,,0.0,7931944444.444445
+leo-high-traffic,Mumbai–New York · high traffic,44,3600.0,contact_aware_earliest_arrival,240,20,220,0,0.08333333333333333,0.0,3376812100.0,4,0.04038211434694396,10680673388.88889
+leo-high-traffic,Mumbai–New York · high traffic,44,3600.0,static_minimum_hop,240,0,240,0,0.0,0.0,,,0.0,7931944444.444445
+leo-expanded-constellation,Mumbai–New York · expanded constellation,42,3600.0,contact_aware_earliest_arrival,60,7,53,0,0.11666666666666667,0.0,20000000,5.285714285714286,0.000856736872393065,1193083333.3333333
+leo-expanded-constellation,Mumbai–New York · expanded constellation,42,3600.0,static_minimum_hop,60,0,60,0,0.0,0.0,,,0.0,1523333333.3333333
+leo-expanded-constellation,Mumbai–New York · expanded constellation,43,3600.0,contact_aware_earliest_arrival,60,0,60,0,0.0,0.0,,,0.0031848104793346516,1523333333.3333333
+leo-expanded-constellation,Mumbai–New York · expanded constellation,43,3600.0,static_minimum_hop,60,0,60,0,0.0,0.0,,,0.0,1523333333.3333333
+leo-expanded-constellation,Mumbai–New York · expanded constellation,44,3600.0,contact_aware_earliest_arrival,60,30,30,0,0.5,0.0,2627312100.0,4.433333333333334,0.003847025420579132,1481380041.6666667
+leo-expanded-constellation,Mumbai–New York · expanded constellation,44,3600.0,static_minimum_hop,60,0,60,0,0.0,0.0,,,0.0,1523333333.3333333

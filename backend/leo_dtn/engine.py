@@ -57,6 +57,8 @@ class _Bundle:
     history: list[ForwardingRecord] = field(default_factory=list)
     visited: set[str] = field(default_factory=set)
     attempt: int = 0
+    transit_contact_id: str | None = None
+    arrival_time_us: int | None = None
 
 
 @dataclass(slots=True)
@@ -578,6 +580,9 @@ class SimulationEngine:
         del self._active_by_contact[contact.contact_id]
         self._active_transmissions.pop(contact.contact_id, None)
         bundle.status = BundleStatus.IN_TRANSIT
+        bundle.transit_contact_id = contact.contact_id
+        arrival_time_us = self._time_us + contact.propagation_delay_us
+        bundle.arrival_time_us = arrival_time_us
         self._record(
             "transmission_completed",
             bundle_id=bundle.request.bundle_id,
@@ -585,7 +590,7 @@ class SimulationEngine:
             contact_id=contact.contact_id,
         )
         self._schedule(
-            self._time_us + contact.propagation_delay_us,
+            arrival_time_us,
             EventPriority.RECEIVER_ARRIVAL,
             "receiver_arrival",
             bundle_id=bundle.request.bundle_id,
@@ -611,6 +616,7 @@ class SimulationEngine:
         transmission = self._active_transmissions.pop(contact_id, None)
         bundle_id = self._active_by_contact.pop(contact_id, None)
         self._record("contact_interrupted", contact_id=contact_id)
+        self._fail_in_flight_for_closed_contact(contact_id, self._time_us)
         if bundle_id is None or transmission is None:
             return
         bundle = self._bundles[bundle_id]
@@ -644,6 +650,8 @@ class SimulationEngine:
         if self._time_us >= bundle.expiry_time_us:
             self._handle_expiration(bundle.request.bundle_id)
             return
+        bundle.transit_contact_id = None
+        bundle.arrival_time_us = None
         receiver = contact.to_node
         if receiver in bundle.visited:
             self._record("duplicate_or_loop_rejected", bundle_id=bundle.request.bundle_id, node_id=receiver)
@@ -706,6 +714,7 @@ class SimulationEngine:
         bundle_id = self._active_by_contact.pop(contact_id, None)
         self._active_transmissions.pop(contact_id, None)
         self._record("contact_ended", contact_id=contact_id)
+        self._fail_in_flight_for_closed_contact(contact_id, event_time_us)
         if bundle_id is None:
             return
         bundle = self._bundles[bundle_id]
@@ -714,6 +723,31 @@ class SimulationEngine:
             bundle.attempt += 1
             self._record("transmission_interrupted", bundle_id=bundle_id, contact_id=contact_id)
             self._schedule_route(bundle_id, self._time_us)
+            self._wake_queued_bundles(except_bundle=bundle_id)
+
+    def _fail_in_flight_for_closed_contact(self, contact_id: str, cutoff_us: int) -> None:
+        """Return serialized bundles to their senders if the link closes before last-bit arrival."""
+        for bundle_id, bundle in sorted(self._bundles.items()):
+            arrival_us = bundle.arrival_time_us
+            if (
+                bundle.status != BundleStatus.IN_TRANSIT
+                or bundle.transit_contact_id != contact_id
+                or arrival_us is None
+                or arrival_us < cutoff_us
+            ):
+                continue
+            bundle.status = BundleStatus.QUEUED
+            bundle.attempt += 1
+            bundle.transit_contact_id = None
+            bundle.arrival_time_us = None
+            self._record(
+                "transmission_interrupted",
+                bundle_id=bundle_id,
+                node_id=bundle.holder,
+                contact_id=contact_id,
+                details=(("failure_reason", "contact_ended_before_arrival"), ("arrival_time_us", str(arrival_us))),
+            )
+            self._schedule_route(bundle_id, cutoff_us)
             self._wake_queued_bundles(except_bundle=bundle_id)
 
     def _wake_queued_bundles(self, *, except_bundle: str) -> None:

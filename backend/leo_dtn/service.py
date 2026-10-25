@@ -39,6 +39,7 @@ class SimulationSession:
     horizon_us: int
     routing_policy_name: str
     status: str = "ready"
+    playback_speed: float = 1.0
     engine: SimulationEngine = field(init=False)
     initial_horizon_us: int = field(init=False)
     lock: RLock = field(default_factory=RLock, repr=False)
@@ -106,6 +107,12 @@ class SimulationSession:
                 raise InvalidRunTransition("only a paused simulation can be resumed")
             self.status = "running"
 
+    def set_playback_speed(self, speed: float) -> None:
+        if speed not in (0.25, 0.5, 1.0, 2.0, 4.0):
+            raise ValueError("playback speed must be one of 0.25, 0.5, 1, 2, or 4")
+        with self.lock:
+            self.playback_speed = speed
+
     def step(self) -> int:
         with self.lock:
             if self.status not in ("ready", "paused"):
@@ -155,6 +162,7 @@ class SimulationSession:
     def reset(self) -> None:
         with self.lock:
             self.horizon_us = self.initial_horizon_us
+            self.playback_speed = 1.0
             self.engine = self._new_engine()
             self.initialize_bundles()
             self.status = "ready"
@@ -223,11 +231,11 @@ class SimulationManager:
 
 
 def default_scenario(scenario_id: str) -> SimulationConfigurationInput:
-    if scenario_id != "relay-vertical-slice":
-        raise KeyError(scenario_id)
-    from .scenarios import relay_vertical_slice_inputs
+    from .scenarios import scenario_definition
 
-    nodes, contacts, bundles = relay_vertical_slice_inputs()
+    definition = scenario_definition(scenario_id)
+    if definition is None:
+        raise KeyError(scenario_id)
     return SimulationConfigurationInput(
         nodes=tuple(
             NodeInput(
@@ -235,8 +243,9 @@ def default_scenario(scenario_id: str) -> SimulationConfigurationInput:
                 kind=item.kind,
                 buffer_capacity_bytes=item.buffer_capacity_bytes,
                 position_km=item.position_km,
+                orbit=item.orbit,
             )
-            for item in nodes
+            for item in definition.nodes
         ),
         contacts=tuple(
             ContactInput(
@@ -248,7 +257,7 @@ def default_scenario(scenario_id: str) -> SimulationConfigurationInput:
                 rate_bits_per_second=item.rate_bits_per_second,
                 propagation_delay_us=item.propagation_delay_us,
             )
-            for item in contacts
+            for item in definition.contacts
         ),
         bundles=tuple(
             BundleInput(
@@ -259,8 +268,13 @@ def default_scenario(scenario_id: str) -> SimulationConfigurationInput:
                 creation_time_us=item.creation_time_us,
                 ttl_us=item.ttl_us,
             )
-            for item in bundles
+            for item in definition.bundles
         ),
+        orbital_contact_generation=definition.orbital_contact_generation,
+        contact_sample_interval_us=definition.contact_sample_interval_us,
+        minimum_elevation_deg=definition.minimum_elevation_deg,
+        orbital_link_rate_bits_per_second=definition.orbital_link_rate_bits_per_second,
+        bundle_generation_interval_us=definition.bundle_generation_interval_us,
     )
 
 

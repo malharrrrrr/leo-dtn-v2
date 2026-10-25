@@ -3,16 +3,19 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import io
 import json
-from dataclasses import asdict, dataclass, is_dataclass
+from dataclasses import asdict, dataclass, is_dataclass, replace
 from enum import Enum
 from typing import Any
 
 from .engine import SimulationEngine
 from .metrics import MetricReport, calculate_metrics
 from .model import BundleRequest, Contact, ContactInterruption, Node, SimulationSnapshot
-from .routing import ContactAwareEarliestArrival, RoutingPolicy
+from .orbit import generate_contact_plan
+from .routing import ContactAwareEarliestArrival, RoutingPolicy, StaticMinimumHop
+from .scenarios import ScenarioDefinition
 
 ENGINE_VERSION = "0.1.0"
 
@@ -34,6 +37,86 @@ class ExperimentResult:
     manifest: RunManifest
     snapshot: SimulationSnapshot
     metrics: MetricReport
+
+
+@dataclass(frozen=True, slots=True)
+class PolicyComparisonResult:
+    routing_policy: str
+    metrics: MetricReport
+
+
+def seeded_orbital_realization(scenario: ScenarioDefinition, random_seed: int) -> ScenarioDefinition:
+    """Return the reproducible orbital phase realization used by paired studies.
+
+    SHA-256 maps each seed and stable node ID to a phase, so shared satellites
+    retain their phase across controlled preset variants and across runtimes.
+    """
+    if not isinstance(random_seed, int) or isinstance(random_seed, bool):
+        raise ValueError("random seed must be an integer")
+    if not scenario.orbital_contact_generation:
+        return scenario
+    nodes = []
+    for node in scenario.nodes:
+        if node.orbit is None:
+            nodes.append(node)
+            continue
+        key = f"leo-dtn-orbit-phase-v1:{random_seed}:{node.node_id}".encode("utf-8")
+        phase_fraction = int.from_bytes(hashlib.sha256(key).digest()[:8], "big") / 2**64
+        nodes.append(replace(node, orbit=replace(node.orbit, phase_deg=phase_fraction * 360.0)))
+    return replace(scenario, nodes=tuple(nodes))
+
+
+def compare_routing_policies(
+    *,
+    scenario: ScenarioDefinition,
+    random_seed: int,
+    horizon_us: int,
+) -> tuple[PolicyComparisonResult, ...]:
+    """Run both routing policies on identical, reproducible scenario inputs."""
+    if not isinstance(random_seed, int) or isinstance(random_seed, bool):
+        raise ValueError("random seed must be an integer")
+    if not isinstance(horizon_us, int) or isinstance(horizon_us, bool) or horizon_us <= 0:
+        raise ValueError("comparison horizon must be a positive integer number of microseconds")
+
+    scenario = seeded_orbital_realization(scenario, random_seed)
+
+    planning_horizon_us = max(
+        horizon_us,
+        max(
+            (bundle.creation_time_us + bundle.ttl_us for bundle in scenario.bundles),
+            default=0,
+        ) if scenario.orbital_contact_generation else horizon_us,
+    )
+    contacts = scenario.contacts
+    if scenario.orbital_contact_generation:
+        contacts += generate_contact_plan(
+            scenario.nodes,
+            horizon_us=planning_horizon_us,
+            sample_interval_us=scenario.contact_sample_interval_us,
+            rate_bits_per_second=scenario.orbital_link_rate_bits_per_second,
+            minimum_elevation_deg=scenario.minimum_elevation_deg,
+        )
+
+    results: list[PolicyComparisonResult] = []
+    for policy_type in (ContactAwareEarliestArrival, StaticMinimumHop):
+        engine = SimulationEngine(
+            nodes=scenario.nodes,
+            contacts=contacts,
+            routing_policy=policy_type(),
+        )
+        for bundle in scenario.bundles:
+            if scenario.bundle_generation_interval_us is None:
+                engine.add_bundle(bundle)
+            else:
+                engine.add_recurring_bundle(bundle, interval_us=scenario.bundle_generation_interval_us)
+        snapshot = engine.run_until(horizon_us)
+        results.append(
+            PolicyComparisonResult(
+                routing_policy=snapshot.routing_policy,
+                metrics=calculate_metrics(snapshot, horizon_us=horizon_us),
+            )
+        )
+    return tuple(results)
 
 
 def run_experiment(

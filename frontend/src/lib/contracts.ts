@@ -2,6 +2,7 @@ export type NodeKind = "satellite" | "ground_station";
 export type BundleStatus = "queued" | "transmitting" | "in_transit" | "delivered" | "expired" | "rejected_at_source";
 export type RunStatus = "ready" | "running" | "paused" | "completed" | "failed";
 export type RoutingPolicy = "contact_aware_earliest_arrival" | "static_minimum_hop";
+export type PlaybackSpeed = 0.25 | 0.5 | 1 | 2 | 4;
 
 export interface NodeConfig {
   node_id: string;
@@ -41,6 +42,23 @@ export interface SimulationConfig {
   contact_sample_interval_us?: number;
   minimum_elevation_deg?: number;
   orbital_link_rate_bits_per_second?: number;
+}
+
+export interface ScenarioSummary {
+  scenario_id: string;
+  name: string;
+  description: string;
+  focus: string;
+  node_count: number;
+  satellite_count: number;
+  ground_station_count: number;
+  contact_count: number;
+  bundle_count: number;
+  orbital_contact_generation: boolean;
+}
+
+export interface ScenarioDetails extends ScenarioSummary {
+  configuration: SimulationConfig;
 }
 
 export interface ForwardingRecord {
@@ -95,6 +113,7 @@ export interface SimulationSnapshot {
   status: RunStatus;
   time_us: number;
   horizon_us: number;
+  playback_speed: PlaybackSpeed;
   routing_policy: RoutingPolicy;
   nodes: NodeState[];
   contacts: ContactState[];
@@ -108,6 +127,7 @@ export interface CreatedSimulation {
   status: RunStatus;
   simulated_time_us: number;
   horizon_us: number;
+  playback_speed: PlaybackSpeed;
   random_seed: number;
   routing_policy: RoutingPolicy;
   node_count: number;
@@ -117,13 +137,39 @@ export interface CreatedSimulation {
 }
 
 export interface Metrics {
+  horizon_us: number;
   generated_count: number;
   delivered_count: number;
   undelivered_count: number;
+  source_rejected_count: number;
   expired_count: number;
   delivery_ratio: number | null;
+  expiration_ratio: number | null;
   mean_delivery_latency_us: number | null;
+  median_delivery_latency_us: number | null;
   mean_hop_count: number | null;
+  median_hop_count: number | null;
   contact_utilization_fraction: number | null;
+  mean_total_buffer_occupancy_bytes: number;
   peak_total_buffer_occupancy_bytes: number;
+  mean_total_buffer_capacity_fraction: number | null;
+  status_counts: [string, number][];
+  per_node_buffer: { node_id: string; peak_occupancy_bytes: number; mean_occupancy_bytes: number; mean_capacity_fraction: number | null }[];
+  per_contact_utilization: { contact_id: string; transmitted_payload_bits: number; scheduled_capacity_bits: number; utilization_fraction: number | null }[];
+}
+
+export interface PolicyComparison {
+  routing_policy: RoutingPolicy;
+  metrics: Metrics;
+}
+
+export interface ScenarioComparison {
+  scenario: ScenarioDetails;
+  results: PolicyComparison[];
+}
+
+export interface ExperimentComparison {
+  random_seed: number;
+  horizon_us: number;
+  scenarios: ScenarioComparison[];
 }

@@ -219,6 +219,58 @@ def test_propagation_delay_is_separate_from_serialization():
     assert snapshot.bundles[0].status == BundleStatus.DELIVERED
 
 
+def test_contact_must_remain_open_until_last_bit_arrives():
+    nodes = (
+        Node("A", NodeKind.GROUND_STATION, 2_000),
+        Node("B", NodeKind.GROUND_STATION, 2_000),
+    )
+    # One second to serialize plus one second of propagation lands exactly at
+    # the half-open contact end, so this route is infeasible.
+    contacts = (Contact("A-B", "A", "B", 0, 2 * SECOND, 8_000, SECOND),)
+    engine = SimulationEngine(nodes=nodes, contacts=contacts)
+    engine.add_bundle(BundleRequest("B1", "A", "B", 1_000, 0, 10 * SECOND))
+
+    snapshot = engine.run_until(2 * SECOND)
+
+    bundle = snapshot.bundles[0]
+    assert bundle.status == BundleStatus.QUEUED
+    assert bundle.holder == "A"
+    assert bundle.forwarding_history == ()
+    assert not any(event.kind == "transmission_started" for event in snapshot.events)
+
+
+def test_contact_interruption_during_propagation_fails_and_retries_from_sender():
+    nodes = (
+        Node("A", NodeKind.GROUND_STATION, 2_000),
+        Node("B", NodeKind.GROUND_STATION, 2_000),
+    )
+    contacts = (
+        Contact("first", "A", "B", 0, 5 * SECOND, 8_000, 2 * SECOND),
+        Contact("retry", "A", "B", 5 * SECOND, 7 * SECOND, 8_000),
+    )
+    engine = SimulationEngine(
+        nodes=nodes,
+        contacts=contacts,
+        interruptions=(ContactInterruption("first", 1_500_000),),
+    )
+    engine.add_bundle(BundleRequest("B1", "A", "B", 1_000, 0, 10 * SECOND))
+
+    snapshot = engine.run_until(6 * SECOND)
+
+    bundle = snapshot.bundles[0]
+    assert bundle.status == BundleStatus.DELIVERED
+    assert bundle.forwarding_history[0].contact_id == "retry"
+    assert bundle.forwarding_history[0].transmission_start_us == 5 * SECOND
+    failed = next(
+        event for event in snapshot.events
+        if event.kind == "transmission_interrupted" and event.contact_id == "first"
+    )
+    assert dict(failed.details) == {
+        "failure_reason": "contact_ended_before_arrival",
+        "arrival_time_us": str(3 * SECOND),
+    }
+
+
 def test_expiration_precedes_arrival_at_same_timestamp():
     nodes = (
         Node("A", NodeKind.GROUND_STATION, 2_000),
