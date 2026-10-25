@@ -155,10 +155,10 @@ export default function AboutPage() {
               <Formula>e = (180/π) asin(((rₛ − r_g) · r_g) / (‖rₛ − r_g‖ ‖r_g‖)) ≥ eₘᵢₙ</Formula>
             </div>
             <Notation>
-              <SymbolTerm symbol="a, b" unit="km vectors">ECEF position vectors of the two endpoints of a candidate link.</SymbolTerm>
+              <SymbolTerm symbol="a, b" unit="km">Three-dimensional ECEF position vectors of the two endpoints of a candidate link; each coordinate is measured in kilometers.</SymbolTerm>
               <SymbolTerm symbol="u" unit="unitless">Fraction of the way along the straight line from a to b; it ranges from 0 to 1.</SymbolTerm>
               <SymbolTerm symbol="‖x‖" unit="km">Length of vector x. The minimum must be at least Earth radius Rₑ for the link to clear Earth.</SymbolTerm>
-              <SymbolTerm symbol="rₛ, r_g" unit="km vectors">ECEF position vectors of the satellite and ground station.</SymbolTerm>
+              <SymbolTerm symbol="rₛ, r_g" unit="km">Three-dimensional ECEF position vectors of the satellite and ground station; each coordinate is measured in kilometers.</SymbolTerm>
               <SymbolTerm symbol="e, eₘᵢₙ" unit="degrees">Elevation angle of the satellite above the ground station's local horizon, and the configured minimum (10° by default). asin is inverse sine and returns radians; multiplying by 180/π converts it to degrees.</SymbolTerm>
               <SymbolTerm symbol="·">Vector dot product. The ground station's position vector points along its local vertical.</SymbolTerm>
               <SymbolTerm symbol="asin, π">Inverse sine and the circle constant (about 3.14159), used to calculate elevation and convert radians to degrees.</SymbolTerm>
