@@ -1,0 +1,1682 @@
+{
+  "study": "LEO-DTN five-seed controlled evaluation",
+  "engine_version": "0.1.0",
+  "horizon_us": 3600000000,
+  "seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "scenario_ids": [
+    "leo-mumbai-new-york",
+    "leo-sparse-constellation",
+    "leo-limited-buffers",
+    "leo-high-traffic",
+    "leo-expanded-constellation"
+  ],
+  "normalized_scenarios": {
+    "leo-mumbai-new-york": {
+      "name": "Mumbai\u2013New York \u00b7 baseline",
+      "description": "The same eight-satellite constellation and recurring traffic used by the default Simulation setup.",
+      "focus": "Baseline moving LEO contacts and store-carry-forward delivery",
+      "nodes": [
+        {
+          "node_id": "GS-MUMBAI",
+          "kind": "ground_station",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": [
+            1772.6682373362771,
+            5754.285453447911,
+            2082.183286979525
+          ],
+          "orbit": null
+        },
+        {
+          "node_id": "SAT-01",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 59,
+            "phase_deg": 22
+          }
+        },
+        {
+          "node_id": "SAT-02",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 102,
+            "phase_deg": 1.6
+          }
+        },
+        {
+          "node_id": "SAT-03",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 0,
+            "phase_deg": 53
+          }
+        },
+        {
+          "node_id": "SAT-04",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 45,
+            "phase_deg": 0
+          }
+        },
+        {
+          "node_id": "SAT-05",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 90,
+            "phase_deg": 37
+          }
+        },
+        {
+          "node_id": "SAT-06",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 135,
+            "phase_deg": 90
+          }
+        },
+        {
+          "node_id": "SAT-07",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 180,
+            "phase_deg": 143
+          }
+        },
+        {
+          "node_id": "SAT-08",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 225,
+            "phase_deg": 196
+          }
+        },
+        {
+          "node_id": "GS-NEW-YORK",
+          "kind": "ground_station",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": [
+            1330.6068019426066,
+            -4642.212062346202,
+            4155.5978759778345
+          ],
+          "orbit": null
+        }
+      ],
+      "contacts": [],
+      "bundles": [
+        {
+          "bundle_id": "BND-001",
+          "source": "GS-MUMBAI",
+          "destination": "GS-NEW-YORK",
+          "payload_bytes": 50000000,
+          "creation_time_us": 2000000,
+          "ttl_us": 21600000000
+        }
+      ],
+      "orbital_contact_generation": true,
+      "contact_sample_interval_us": 10000000,
+      "minimum_elevation_deg": 10.0,
+      "orbital_link_rate_bits_per_second": 100000000,
+      "bundle_generation_interval_us": 60000000
+    },
+    "leo-sparse-constellation": {
+      "name": "Mumbai\u2013New York \u00b7 sparse constellation",
+      "description": "Keeps the same stations, orbits, bundle, and traffic, but uses four of the baseline satellites.",
+      "focus": "How fewer satellites affect contact availability and delivery",
+      "nodes": [
+        {
+          "node_id": "GS-MUMBAI",
+          "kind": "ground_station",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": [
+            1772.6682373362771,
+            5754.285453447911,
+            2082.183286979525
+          ],
+          "orbit": null
+        },
+        {
+          "node_id": "SAT-01",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 59,
+            "phase_deg": 22
+          }
+        },
+        {
+          "node_id": "SAT-02",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 0,
+            "phase_deg": 53
+          }
+        },
+        {
+          "node_id": "SAT-03",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 90,
+            "phase_deg": 37
+          }
+        },
+        {
+          "node_id": "SAT-04",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 180,
+            "phase_deg": 143
+          }
+        },
+        {
+          "node_id": "GS-NEW-YORK",
+          "kind": "ground_station",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": [
+            1330.6068019426066,
+            -4642.212062346202,
+            4155.5978759778345
+          ],
+          "orbit": null
+        }
+      ],
+      "contacts": [],
+      "bundles": [
+        {
+          "bundle_id": "BND-001",
+          "source": "GS-MUMBAI",
+          "destination": "GS-NEW-YORK",
+          "payload_bytes": 50000000,
+          "creation_time_us": 2000000,
+          "ttl_us": 21600000000
+        }
+      ],
+      "orbital_contact_generation": true,
+      "contact_sample_interval_us": 10000000,
+      "minimum_elevation_deg": 10.0,
+      "orbital_link_rate_bits_per_second": 100000000,
+      "bundle_generation_interval_us": 60000000
+    },
+    "leo-limited-buffers": {
+      "name": "Mumbai\u2013New York \u00b7 limited buffers",
+      "description": "Keeps the baseline constellation and traffic while reducing relay buffers to one bundle each.",
+      "focus": "How finite satellite storage affects recurring bundle delivery",
+      "nodes": [
+        {
+          "node_id": "GS-MUMBAI",
+          "kind": "ground_station",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": [
+            1772.6682373362771,
+            5754.285453447911,
+            2082.183286979525
+          ],
+          "orbit": null
+        },
+        {
+          "node_id": "SAT-01",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 50000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 59,
+            "phase_deg": 22
+          }
+        },
+        {
+          "node_id": "SAT-02",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 50000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 102,
+            "phase_deg": 1.6
+          }
+        },
+        {
+          "node_id": "SAT-03",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 50000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 0,
+            "phase_deg": 53
+          }
+        },
+        {
+          "node_id": "SAT-04",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 50000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 45,
+            "phase_deg": 0
+          }
+        },
+        {
+          "node_id": "SAT-05",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 50000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 90,
+            "phase_deg": 37
+          }
+        },
+        {
+          "node_id": "SAT-06",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 50000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 135,
+            "phase_deg": 90
+          }
+        },
+        {
+          "node_id": "SAT-07",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 50000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 180,
+            "phase_deg": 143
+          }
+        },
+        {
+          "node_id": "SAT-08",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 50000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 225,
+            "phase_deg": 196
+          }
+        },
+        {
+          "node_id": "GS-NEW-YORK",
+          "kind": "ground_station",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": [
+            1330.6068019426066,
+            -4642.212062346202,
+            4155.5978759778345
+          ],
+          "orbit": null
+        }
+      ],
+      "contacts": [],
+      "bundles": [
+        {
+          "bundle_id": "BND-001",
+          "source": "GS-MUMBAI",
+          "destination": "GS-NEW-YORK",
+          "payload_bytes": 50000000,
+          "creation_time_us": 2000000,
+          "ttl_us": 21600000000
+        }
+      ],
+      "orbital_contact_generation": true,
+      "contact_sample_interval_us": 10000000,
+      "minimum_elevation_deg": 10.0,
+      "orbital_link_rate_bits_per_second": 100000000,
+      "bundle_generation_interval_us": 60000000
+    },
+    "leo-high-traffic": {
+      "name": "Mumbai\u2013New York \u00b7 high traffic",
+      "description": "Keeps the baseline constellation but generates 100 MB bundles every 15 simulated seconds.",
+      "focus": "How higher offered load affects delivery and queueing",
+      "nodes": [
+        {
+          "node_id": "GS-MUMBAI",
+          "kind": "ground_station",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": [
+            1772.6682373362771,
+            5754.285453447911,
+            2082.183286979525
+          ],
+          "orbit": null
+        },
+        {
+          "node_id": "SAT-01",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 59,
+            "phase_deg": 22
+          }
+        },
+        {
+          "node_id": "SAT-02",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 102,
+            "phase_deg": 1.6
+          }
+        },
+        {
+          "node_id": "SAT-03",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 0,
+            "phase_deg": 53
+          }
+        },
+        {
+          "node_id": "SAT-04",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 45,
+            "phase_deg": 0
+          }
+        },
+        {
+          "node_id": "SAT-05",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 90,
+            "phase_deg": 37
+          }
+        },
+        {
+          "node_id": "SAT-06",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 135,
+            "phase_deg": 90
+          }
+        },
+        {
+          "node_id": "SAT-07",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 180,
+            "phase_deg": 143
+          }
+        },
+        {
+          "node_id": "SAT-08",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 225,
+            "phase_deg": 196
+          }
+        },
+        {
+          "node_id": "GS-NEW-YORK",
+          "kind": "ground_station",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": [
+            1330.6068019426066,
+            -4642.212062346202,
+            4155.5978759778345
+          ],
+          "orbit": null
+        }
+      ],
+      "contacts": [],
+      "bundles": [
+        {
+          "bundle_id": "BND-001",
+          "source": "GS-MUMBAI",
+          "destination": "GS-NEW-YORK",
+          "payload_bytes": 100000000,
+          "creation_time_us": 2000000,
+          "ttl_us": 21600000000
+        }
+      ],
+      "orbital_contact_generation": true,
+      "contact_sample_interval_us": 10000000,
+      "minimum_elevation_deg": 10.0,
+      "orbital_link_rate_bits_per_second": 100000000,
+      "bundle_generation_interval_us": 15000000
+    },
+    "leo-expanded-constellation": {
+      "name": "Mumbai\u2013New York \u00b7 expanded constellation",
+      "description": "Adds eight moving satellites to the same baseline orbital setup and traffic pattern.",
+      "focus": "How a larger constellation changes generated contact opportunities",
+      "nodes": [
+        {
+          "node_id": "GS-MUMBAI",
+          "kind": "ground_station",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": [
+            1772.6682373362771,
+            5754.285453447911,
+            2082.183286979525
+          ],
+          "orbit": null
+        },
+        {
+          "node_id": "SAT-01",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 59,
+            "phase_deg": 22
+          }
+        },
+        {
+          "node_id": "SAT-02",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 102,
+            "phase_deg": 1.6
+          }
+        },
+        {
+          "node_id": "SAT-03",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 0,
+            "phase_deg": 53
+          }
+        },
+        {
+          "node_id": "SAT-04",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 45,
+            "phase_deg": 0
+          }
+        },
+        {
+          "node_id": "SAT-05",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 90,
+            "phase_deg": 37
+          }
+        },
+        {
+          "node_id": "SAT-06",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 135,
+            "phase_deg": 90
+          }
+        },
+        {
+          "node_id": "SAT-07",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 180,
+            "phase_deg": 143
+          }
+        },
+        {
+          "node_id": "SAT-08",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 225,
+            "phase_deg": 196
+          }
+        },
+        {
+          "node_id": "SAT-09",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 22.5,
+            "phase_deg": 18
+          }
+        },
+        {
+          "node_id": "SAT-10",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 67.5,
+            "phase_deg": 59
+          }
+        },
+        {
+          "node_id": "SAT-11",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 112.5,
+            "phase_deg": 100
+          }
+        },
+        {
+          "node_id": "SAT-12",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 157.5,
+            "phase_deg": 141
+          }
+        },
+        {
+          "node_id": "SAT-13",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 202.5,
+            "phase_deg": 182
+          }
+        },
+        {
+          "node_id": "SAT-14",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 247.5,
+            "phase_deg": 223
+          }
+        },
+        {
+          "node_id": "SAT-15",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 292.5,
+            "phase_deg": 264
+          }
+        },
+        {
+          "node_id": "SAT-16",
+          "kind": "satellite",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": null,
+          "orbit": {
+            "altitude_km": 550,
+            "inclination_deg": 53,
+            "raan_deg": 337.5,
+            "phase_deg": 305
+          }
+        },
+        {
+          "node_id": "GS-NEW-YORK",
+          "kind": "ground_station",
+          "buffer_capacity_bytes": 10000000000,
+          "position_km": [
+            1330.6068019426066,
+            -4642.212062346202,
+            4155.5978759778345
+          ],
+          "orbit": null
+        }
+      ],
+      "contacts": [],
+      "bundles": [
+        {
+          "bundle_id": "BND-001",
+          "source": "GS-MUMBAI",
+          "destination": "GS-NEW-YORK",
+          "payload_bytes": 50000000,
+          "creation_time_us": 2000000,
+          "ttl_us": 21600000000
+        }
+      ],
+      "orbital_contact_generation": true,
+      "contact_sample_interval_us": 10000000,
+      "minimum_elevation_deg": 10.0,
+      "orbital_link_rate_bits_per_second": 100000000,
+      "bundle_generation_interval_us": 60000000
+    }
+  },
+  "routing_policies": [
+    "contact_aware_earliest_arrival",
+    "static_minimum_hop"
+  ],
+  "orbital_model": "circular two-body propagation around a spherical Earth with sampled line-of-sight and minimum-elevation contacts",
+  "replication_note": "Five deterministic paired phase realizations for each controlled preset; descriptive results only, no significance test.",
+  "rows": [
+    {
+      "scenario_id": "leo-mumbai-new-york",
+      "scenario_name": "Mumbai\u2013New York \u00b7 baseline",
+      "seed": 42,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "contact_aware_earliest_arrival",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.0012294367881732062,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    },
+    {
+      "scenario_id": "leo-mumbai-new-york",
+      "scenario_name": "Mumbai\u2013New York \u00b7 baseline",
+      "seed": 42,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "static_minimum_hop",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.0,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    },
+    {
+      "scenario_id": "leo-mumbai-new-york",
+      "scenario_name": "Mumbai\u2013New York \u00b7 baseline",
+      "seed": 43,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "contact_aware_earliest_arrival",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.004888452116129531,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    },
+    {
+      "scenario_id": "leo-mumbai-new-york",
+      "scenario_name": "Mumbai\u2013New York \u00b7 baseline",
+      "seed": 43,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "static_minimum_hop",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.0,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    },
+    {
+      "scenario_id": "leo-mumbai-new-york",
+      "scenario_name": "Mumbai\u2013New York \u00b7 baseline",
+      "seed": 44,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "contact_aware_earliest_arrival",
+      "generated_count": 60,
+      "delivered_count": 18,
+      "undelivered_count": 42,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.3,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": 2963312100.0,
+      "mean_hop_count": 4,
+      "contact_utilization_fraction": 0.00794402249448078,
+      "mean_total_buffer_occupancy_bytes": 1492161358.3333333
+    },
+    {
+      "scenario_id": "leo-mumbai-new-york",
+      "scenario_name": "Mumbai\u2013New York \u00b7 baseline",
+      "seed": 44,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "static_minimum_hop",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.0,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    },
+    {
+      "scenario_id": "leo-mumbai-new-york",
+      "scenario_name": "Mumbai\u2013New York \u00b7 baseline",
+      "seed": 45,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "contact_aware_earliest_arrival",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.005151376412057739,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    },
+    {
+      "scenario_id": "leo-mumbai-new-york",
+      "scenario_name": "Mumbai\u2013New York \u00b7 baseline",
+      "seed": 45,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "static_minimum_hop",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.0,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    },
+    {
+      "scenario_id": "leo-mumbai-new-york",
+      "scenario_name": "Mumbai\u2013New York \u00b7 baseline",
+      "seed": 46,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "contact_aware_earliest_arrival",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.0072383498039087085,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    },
+    {
+      "scenario_id": "leo-mumbai-new-york",
+      "scenario_name": "Mumbai\u2013New York \u00b7 baseline",
+      "seed": 46,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "static_minimum_hop",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.0,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    },
+    {
+      "scenario_id": "leo-sparse-constellation",
+      "scenario_name": "Mumbai\u2013New York \u00b7 sparse constellation",
+      "seed": 42,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "contact_aware_earliest_arrival",
+      "generated_count": 60,
+      "delivered_count": 4,
+      "undelivered_count": 56,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.06666666666666667,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": 1123726033.0,
+      "mean_hop_count": 4,
+      "contact_utilization_fraction": 0.006842381435289862,
+      "mean_total_buffer_occupancy_bytes": 1390873668.5
+    },
+    {
+      "scenario_id": "leo-sparse-constellation",
+      "scenario_name": "Mumbai\u2013New York \u00b7 sparse constellation",
+      "seed": 42,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "static_minimum_hop",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.0,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    },
+    {
+      "scenario_id": "leo-sparse-constellation",
+      "scenario_name": "Mumbai\u2013New York \u00b7 sparse constellation",
+      "seed": 43,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "contact_aware_earliest_arrival",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.0,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    },
+    {
+      "scenario_id": "leo-sparse-constellation",
+      "scenario_name": "Mumbai\u2013New York \u00b7 sparse constellation",
+      "seed": 43,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "static_minimum_hop",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.0,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    },
+    {
+      "scenario_id": "leo-sparse-constellation",
+      "scenario_name": "Mumbai\u2013New York \u00b7 sparse constellation",
+      "seed": 44,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "contact_aware_earliest_arrival",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.0,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    },
+    {
+      "scenario_id": "leo-sparse-constellation",
+      "scenario_name": "Mumbai\u2013New York \u00b7 sparse constellation",
+      "seed": 44,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "static_minimum_hop",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.0,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    },
+    {
+      "scenario_id": "leo-sparse-constellation",
+      "scenario_name": "Mumbai\u2013New York \u00b7 sparse constellation",
+      "seed": 45,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "contact_aware_earliest_arrival",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.04082594179497659,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    },
+    {
+      "scenario_id": "leo-sparse-constellation",
+      "scenario_name": "Mumbai\u2013New York \u00b7 sparse constellation",
+      "seed": 45,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "static_minimum_hop",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.04082594179497659,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    },
+    {
+      "scenario_id": "leo-sparse-constellation",
+      "scenario_name": "Mumbai\u2013New York \u00b7 sparse constellation",
+      "seed": 46,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "contact_aware_earliest_arrival",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.0,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    },
+    {
+      "scenario_id": "leo-sparse-constellation",
+      "scenario_name": "Mumbai\u2013New York \u00b7 sparse constellation",
+      "seed": 46,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "static_minimum_hop",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.0,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    },
+    {
+      "scenario_id": "leo-limited-buffers",
+      "scenario_name": "Mumbai\u2013New York \u00b7 limited buffers",
+      "seed": 42,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "contact_aware_earliest_arrival",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.036806263845935355,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    },
+    {
+      "scenario_id": "leo-limited-buffers",
+      "scenario_name": "Mumbai\u2013New York \u00b7 limited buffers",
+      "seed": 42,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "static_minimum_hop",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.0,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    },
+    {
+      "scenario_id": "leo-limited-buffers",
+      "scenario_name": "Mumbai\u2013New York \u00b7 limited buffers",
+      "seed": 43,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "contact_aware_earliest_arrival",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.010639572252752508,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    },
+    {
+      "scenario_id": "leo-limited-buffers",
+      "scenario_name": "Mumbai\u2013New York \u00b7 limited buffers",
+      "seed": 43,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "static_minimum_hop",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.0,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    },
+    {
+      "scenario_id": "leo-limited-buffers",
+      "scenario_name": "Mumbai\u2013New York \u00b7 limited buffers",
+      "seed": 44,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "contact_aware_earliest_arrival",
+      "generated_count": 60,
+      "delivered_count": 1,
+      "undelivered_count": 59,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.016666666666666666,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": 3439312100,
+      "mean_hop_count": 4,
+      "contact_utilization_fraction": 0.013902039365341365,
+      "mean_total_buffer_occupancy_bytes": 1521129334.7222223
+    },
+    {
+      "scenario_id": "leo-limited-buffers",
+      "scenario_name": "Mumbai\u2013New York \u00b7 limited buffers",
+      "seed": 44,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "static_minimum_hop",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.0,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    },
+    {
+      "scenario_id": "leo-limited-buffers",
+      "scenario_name": "Mumbai\u2013New York \u00b7 limited buffers",
+      "seed": 45,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "contact_aware_earliest_arrival",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.009658830772608259,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    },
+    {
+      "scenario_id": "leo-limited-buffers",
+      "scenario_name": "Mumbai\u2013New York \u00b7 limited buffers",
+      "seed": 45,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "static_minimum_hop",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.0,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    },
+    {
+      "scenario_id": "leo-limited-buffers",
+      "scenario_name": "Mumbai\u2013New York \u00b7 limited buffers",
+      "seed": 46,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "contact_aware_earliest_arrival",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.04792286766725766,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    },
+    {
+      "scenario_id": "leo-limited-buffers",
+      "scenario_name": "Mumbai\u2013New York \u00b7 limited buffers",
+      "seed": 46,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "static_minimum_hop",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.0,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    },
+    {
+      "scenario_id": "leo-high-traffic",
+      "scenario_name": "Mumbai\u2013New York \u00b7 high traffic",
+      "seed": 42,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "contact_aware_earliest_arrival",
+      "generated_count": 240,
+      "delivered_count": 0,
+      "undelivered_count": 240,
+      "source_rejected_count": 113,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.008913416714255743,
+      "mean_total_buffer_occupancy_bytes": 9359194444.444445
+    },
+    {
+      "scenario_id": "leo-high-traffic",
+      "scenario_name": "Mumbai\u2013New York \u00b7 high traffic",
+      "seed": 42,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "static_minimum_hop",
+      "generated_count": 240,
+      "delivered_count": 0,
+      "undelivered_count": 240,
+      "source_rejected_count": 140,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.0,
+      "mean_total_buffer_occupancy_bytes": 7931944444.444445
+    },
+    {
+      "scenario_id": "leo-high-traffic",
+      "scenario_name": "Mumbai\u2013New York \u00b7 high traffic",
+      "seed": 43,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "contact_aware_earliest_arrival",
+      "generated_count": 240,
+      "delivered_count": 0,
+      "undelivered_count": 240,
+      "source_rejected_count": 86,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.01035201624592136,
+      "mean_total_buffer_occupancy_bytes": 8997694444.444445
+    },
+    {
+      "scenario_id": "leo-high-traffic",
+      "scenario_name": "Mumbai\u2013New York \u00b7 high traffic",
+      "seed": 43,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "static_minimum_hop",
+      "generated_count": 240,
+      "delivered_count": 0,
+      "undelivered_count": 240,
+      "source_rejected_count": 140,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.0,
+      "mean_total_buffer_occupancy_bytes": 7931944444.444445
+    },
+    {
+      "scenario_id": "leo-high-traffic",
+      "scenario_name": "Mumbai\u2013New York \u00b7 high traffic",
+      "seed": 44,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "contact_aware_earliest_arrival",
+      "generated_count": 240,
+      "delivered_count": 20,
+      "undelivered_count": 220,
+      "source_rejected_count": 79,
+      "expired_count": 0,
+      "delivery_ratio": 0.08333333333333333,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": 3376812100.0,
+      "mean_hop_count": 4,
+      "contact_utilization_fraction": 0.04038211434694396,
+      "mean_total_buffer_occupancy_bytes": 10680673388.88889
+    },
+    {
+      "scenario_id": "leo-high-traffic",
+      "scenario_name": "Mumbai\u2013New York \u00b7 high traffic",
+      "seed": 44,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "static_minimum_hop",
+      "generated_count": 240,
+      "delivered_count": 0,
+      "undelivered_count": 240,
+      "source_rejected_count": 140,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.0,
+      "mean_total_buffer_occupancy_bytes": 7931944444.444445
+    },
+    {
+      "scenario_id": "leo-high-traffic",
+      "scenario_name": "Mumbai\u2013New York \u00b7 high traffic",
+      "seed": 45,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "contact_aware_earliest_arrival",
+      "generated_count": 240,
+      "delivered_count": 0,
+      "undelivered_count": 240,
+      "source_rejected_count": 81,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.016098051287680434,
+      "mean_total_buffer_occupancy_bytes": 10657416666.666666
+    },
+    {
+      "scenario_id": "leo-high-traffic",
+      "scenario_name": "Mumbai\u2013New York \u00b7 high traffic",
+      "seed": 45,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "static_minimum_hop",
+      "generated_count": 240,
+      "delivered_count": 0,
+      "undelivered_count": 240,
+      "source_rejected_count": 140,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.0,
+      "mean_total_buffer_occupancy_bytes": 7931944444.444445
+    },
+    {
+      "scenario_id": "leo-high-traffic",
+      "scenario_name": "Mumbai\u2013New York \u00b7 high traffic",
+      "seed": 46,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "contact_aware_earliest_arrival",
+      "generated_count": 240,
+      "delivered_count": 0,
+      "undelivered_count": 240,
+      "source_rejected_count": 113,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.013478306531416217,
+      "mean_total_buffer_occupancy_bytes": 9336694444.444445
+    },
+    {
+      "scenario_id": "leo-high-traffic",
+      "scenario_name": "Mumbai\u2013New York \u00b7 high traffic",
+      "seed": 46,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "static_minimum_hop",
+      "generated_count": 240,
+      "delivered_count": 0,
+      "undelivered_count": 240,
+      "source_rejected_count": 140,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.0,
+      "mean_total_buffer_occupancy_bytes": 7931944444.444445
+    },
+    {
+      "scenario_id": "leo-expanded-constellation",
+      "scenario_name": "Mumbai\u2013New York \u00b7 expanded constellation",
+      "seed": 42,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "contact_aware_earliest_arrival",
+      "generated_count": 60,
+      "delivered_count": 7,
+      "undelivered_count": 53,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.11666666666666667,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": 20000000,
+      "mean_hop_count": 5.285714285714286,
+      "contact_utilization_fraction": 0.000856736872393065,
+      "mean_total_buffer_occupancy_bytes": 1193083333.3333333
+    },
+    {
+      "scenario_id": "leo-expanded-constellation",
+      "scenario_name": "Mumbai\u2013New York \u00b7 expanded constellation",
+      "seed": 42,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "static_minimum_hop",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.0,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    },
+    {
+      "scenario_id": "leo-expanded-constellation",
+      "scenario_name": "Mumbai\u2013New York \u00b7 expanded constellation",
+      "seed": 43,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "contact_aware_earliest_arrival",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.0031848104793346516,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    },
+    {
+      "scenario_id": "leo-expanded-constellation",
+      "scenario_name": "Mumbai\u2013New York \u00b7 expanded constellation",
+      "seed": 43,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "static_minimum_hop",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.0,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    },
+    {
+      "scenario_id": "leo-expanded-constellation",
+      "scenario_name": "Mumbai\u2013New York \u00b7 expanded constellation",
+      "seed": 44,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "contact_aware_earliest_arrival",
+      "generated_count": 60,
+      "delivered_count": 30,
+      "undelivered_count": 30,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.5,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": 2627312100.0,
+      "mean_hop_count": 4.433333333333334,
+      "contact_utilization_fraction": 0.003847025420579132,
+      "mean_total_buffer_occupancy_bytes": 1481380041.6666667
+    },
+    {
+      "scenario_id": "leo-expanded-constellation",
+      "scenario_name": "Mumbai\u2013New York \u00b7 expanded constellation",
+      "seed": 44,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "static_minimum_hop",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.0,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    },
+    {
+      "scenario_id": "leo-expanded-constellation",
+      "scenario_name": "Mumbai\u2013New York \u00b7 expanded constellation",
+      "seed": 45,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "contact_aware_earliest_arrival",
+      "generated_count": 60,
+      "delivered_count": 32,
+      "undelivered_count": 28,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.5333333333333333,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": 1596071034.0,
+      "mean_hop_count": 5.75,
+      "contact_utilization_fraction": 0.005217633283705277,
+      "mean_total_buffer_occupancy_bytes": 922527184.1388888
+    },
+    {
+      "scenario_id": "leo-expanded-constellation",
+      "scenario_name": "Mumbai\u2013New York \u00b7 expanded constellation",
+      "seed": 45,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "static_minimum_hop",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.0,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    },
+    {
+      "scenario_id": "leo-expanded-constellation",
+      "scenario_name": "Mumbai\u2013New York \u00b7 expanded constellation",
+      "seed": 46,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "contact_aware_earliest_arrival",
+      "generated_count": 60,
+      "delivered_count": 29,
+      "undelivered_count": 31,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.48333333333333334,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": 1015940491,
+      "mean_hop_count": 5.103448275862069,
+      "contact_utilization_fraction": 0.006234786047229309,
+      "mean_total_buffer_occupancy_bytes": 824301888.625
+    },
+    {
+      "scenario_id": "leo-expanded-constellation",
+      "scenario_name": "Mumbai\u2013New York \u00b7 expanded constellation",
+      "seed": 46,
+      "horizon_seconds": 3600.0,
+      "routing_policy": "static_minimum_hop",
+      "generated_count": 60,
+      "delivered_count": 0,
+      "undelivered_count": 60,
+      "source_rejected_count": 0,
+      "expired_count": 0,
+      "delivery_ratio": 0.0,
+      "expiration_ratio": 0.0,
+      "median_delivery_latency_us": null,
+      "mean_hop_count": null,
+      "contact_utilization_fraction": 0.0,
+      "mean_total_buffer_occupancy_bytes": 1523333333.3333333
+    }
+  ]
+}

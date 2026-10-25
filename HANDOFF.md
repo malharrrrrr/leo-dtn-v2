@@ -156,6 +156,14 @@ On Unix, use `backend/.venv/bin/python`. Do not make engine tests depend on runn
 - Restored the earlier 3,600-second saved comparison across all five presets alongside the newer 28,800-second baseline comparison. The saved-comparison control now opens two clearly labeled choices: “1-hour · all 5 presets” and “8-hour · baseline, delayed contacts”; selecting either displays its static results.
 - Frontend verification passed: `npm run typecheck`, `npm run lint`, and `npm run build` from `frontend/`. Preserve the unrelated modification to `frontend/next-env.d.ts` when staging.
 
-Next, handle the Next.js security upgrade when the user chooses whether to use a separate worktree or the current checkout. Then continue interactive checks for the 3D playback, preset loading, multi-seed run-level CSV download, and mobile layout. Keep claims about statistical significance limited to an adequately powered analysis; the included three-seed sweep is descriptive only.
+### Five-seed controlled evaluation and validation follow-up (2026-10-25)
+
+- Added `backend/scripts/run_final_evaluation.py` to regenerate a paired five-seed (42–46), one-hour study for all five selectable presets. It saves 50 run-level rows to `docs/results/final-evaluation.csv` and a JSON manifest with normalized scenario inputs to `docs/results/final-evaluation.json`.
+- `docs/final-evaluation.md` now documents the expanded reproducible method and five-seed summary table. Results remain descriptive; one hour is shorter than the first baseline Mumbai-to-SAT-06 contact, so static-minimum-hop zeros are cutoff-censored, not evidence of eventual failure.
+- The backend suite passed with loopback access (53 tests); frontend typecheck and lint passed. The full production build was not rerun in this task.
+- Interactive browser validation for 3D playback/contact behavior, preset loading, and CSV download remains pending. Computer Use could not safely identify the current browser URL, and local dev-server binding was denied by the environment. Do not treat static source review as interaction validation.
+- Preserve the pre-existing `frontend/next-env.d.ts` modification; it was not included in this task. Current branch remains `codex/next-security-upgrade`.
+
+Next, complete interaction-level checks for 3D playback/contact windows, preset loading, and multi-seed run-level CSV download. Mobile layout and the separate Next.js security follow-up are outside the scope of the latest user request. Keep claims about statistical significance limited to an adequately powered analysis; both the three-seed reference and five-seed evaluation are descriptive only.
 
 After substantial work, update this file’s current state, verification results, and suggested next task so another agent can resume without reconstructing the entire conversation.

@@ -24,7 +24,7 @@ No deadlines are assigned. Each milestone has an independently checkable exit co
 
 **Acceptance:** focused tests cover each boundary and simultaneous expiry/delivery. A contact must remain open until modeled last-bit arrival (serialization plus propagation); a close before or at arrival fails the attempt and retains the complete bundle at its sender for retry. Failed or infeasible contacts cannot create a delivery; finite buffers are enforced; routing can be replaced without changing engine event semantics.
 
-## 4. Metrics and reproducible experiments (paired seeded phase sweeps and reference output implemented; further study pending)
+## 4. Metrics and reproducible experiments (paired seeded phase sweeps and five-seed controlled reference output implemented)
 
 **Depends on:** milestones 2–3.
 
@@ -56,7 +56,7 @@ No deadlines are assigned. Each milestone has an independently checkable exit co
 
 **Acceptance:** positions change deterministically with simulated time; generated contacts obey the declared spherical-Earth and minimum-elevation model, disappear at computed window end, the rolling plan continues beyond its minimum horizon and covers bundle TTL, and identical inputs replay identically. A regression proves the initial route uses an early viable contact even when delivery requires contacts beyond the requested minimum horizon. Recurring bundle IDs and generation times are deterministic. State clearly that this is simplified orbital propagation, not a high-fidelity operational model. Validate long-run cost and browser playback interactively before calling the milestone complete.
 
-## 8. End-to-end validation and academic evaluation (workflow and reference run delivered; broader evaluation pending)
+## 8. End-to-end validation and academic evaluation (descriptive study and reproducibility workflow delivered; end-to-end acceptance awaits interactive orbital validation)
 
 **Depends on:** milestones 1–7.
 

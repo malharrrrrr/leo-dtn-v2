@@ -52,3 +52,26 @@ The orbital model uses deterministic circular two-body propagation around a sphe
 The comparison page's **Download run-level CSV** exports one row for every preset, seed, and routing policy. The file includes preset ID and name, seed, horizon, generated/delivered/source-rejected/expired/undelivered counts, delivery and expiration ratios, median latency in microseconds, mean hops, contact utilization, and mean buffer occupancy in bytes. Keep the original CSV unchanged as the analysis input and record any transformations applied to figures or tables.
 
 The repository also includes a checked-in three-seed reference run at [`results/reference-study.csv`](results/reference-study.csv) and its JSON companion. Regenerate both from the repository root with `backend/.venv/Scripts/python.exe backend/scripts/run_reference_study.py` on Windows (`backend/.venv/bin/python` on Unix). The script runs all five presets at seed 42–44 and a 3,600-second cutoff using the same paired policy comparison as the API.
+
+## Five-seed controlled evaluation
+
+The expanded controlled evaluation compares both routing policies on all five selectable presets with shared seeded satellite phases, seeds 42–46, and a 3,600-second (1-hour) observation cutoff. It adds two phase realizations to the included three-seed reference set. Each preset isolates a declared setting relative to baseline, but the one-hour cutoff is shorter than the first Mumbai-to-SAT-06 contact at 16,033.97 seconds. As a result, static-minimum-hop outcomes are heavily right-censored in this comparison. The saved eight-hour baseline comparison provides a separate view at a longer cutoff; do not compare the one-hour preset results directly with its eight-hour outcomes as if only one factor changed.
+
+The five-seed run-level dataset is [`results/final-evaluation.csv`](results/final-evaluation.csv), with a JSON manifest and full row values in [`results/final-evaluation.json`](results/final-evaluation.json). Regenerate it from the repository root with `backend/.venv/Scripts/python.exe backend/scripts/run_final_evaluation.py` on Windows (`backend/.venv/bin/python` on Unix). Each row records one preset, seed, and routing policy, including generated, delivered, rejected, expired, and undelivered counts plus latency, hops, utilization, and occupancy. The study is descriptive across five deterministic phase realizations; it is not a statistical significance test.
+
+### Five-seed one-hour summary
+
+| Network setting | Policy | Attempted per run | Mean delivered (range) | Mean delivery ratio |
+|---|---|---:|---:|---:|
+| Baseline | Contact-aware earliest arrival | 60 | 3.6 (0–18) | 6.0% |
+| Baseline | Static minimum hop | 60 | 0.0 (0–0) | 0.0% |
+| Sparse constellation | Contact-aware earliest arrival | 60 | 0.8 (0–4) | 1.3% |
+| Sparse constellation | Static minimum hop | 60 | 0.0 (0–0) | 0.0% |
+| Limited buffers | Contact-aware earliest arrival | 60 | 0.2 (0–1) | 0.3% |
+| Limited buffers | Static minimum hop | 60 | 0.0 (0–0) | 0.0% |
+| High traffic | Contact-aware earliest arrival | 240 | 4.0 (0–20) | 1.7% |
+| High traffic | Static minimum hop | 240 | 0.0 (0–0) | 0.0% |
+| Expanded constellation | Contact-aware earliest arrival | 60 | 19.6 (0–32) | 32.7% |
+| Expanded constellation | Static minimum hop | 60 | 0.0 (0–0) | 0.0% |
+
+The expanded constellation had the largest contact-aware mean delivery ratio in these tested realizations. The one-hour cutoff precedes the first contact used by the static minimum-hop baseline, so its zeros here describe the observation window, not eventual delivery. These averages and ranges describe five seeds only and do not establish statistical significance.
