@@ -60,7 +60,7 @@ def create_app(manager: SimulationManager | None = None) -> FastAPI:
     app = FastAPI(title="LEO-DTN Simulation API", version="0.1.0", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+        allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "https://leo-dtn-v2.vercel.app/"],
         allow_credentials=False,
         allow_methods=["GET", "POST"],
         allow_headers=["Content-Type"],
