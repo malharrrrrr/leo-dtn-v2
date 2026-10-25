@@ -27,7 +27,7 @@ const contents = [
 ];
 
 function Formula({ children, note }: { children: string; note?: string }) {
-  return <div className="about-formula"><code>{children}</code>{note && <small>{note}</small>}</div>;
+  return <div className="about-formula"><div className="about-math" role="math">{children}</div>{note && <small>{note}</small>}</div>;
 }
 
 function Term({ name, children }: { name: string; children: ReactNode }) {

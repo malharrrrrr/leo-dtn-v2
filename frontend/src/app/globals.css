@@ -524,6 +524,103 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   .about-example-path { flex-direction: column; align-items: stretch; }.about-example-path > svg { align-self: center; transform: rotate(90deg); }.about-example-path > div { padding: 8px; }
   .about-footer { align-items: flex-start; flex-direction: column; }
 }
+
+/* About page readability and page rhythm */
+.about-hero { max-width: 1360px; min-height: 270px; padding-inline: clamp(28px, 6vw, 88px); }
+.about-layout { grid-template-columns: 230px minmax(0, 980px); gap: 38px; max-width: 1380px; padding: 38px 28px 80px; }
+.about-toc nav { gap: 4px; }
+.about-toc nav a { padding: 9px 8px; font-size: 12px; }
+.about-toc nav a span { font-size: 9px; }
+.about-toc-note p { font-size: 11px; }
+.about-section { padding: 30px 32px 32px; margin-bottom: 18px; border-radius: 15px; }
+.about-section-heading { gap: 14px; padding-bottom: 18px; margin-bottom: 20px; }
+.about-section-heading .eyebrow { font-size: 10px; }
+.about-section-heading h2 { font-size: 23px; }
+.about-section > p, .about-details > p { font-size: 14px; line-height: 1.8; }
+.about-section .about-lead { font-size: 18px; line-height: 1.75; }
+.about-callout { padding: 16px 18px; margin: 20px 0; }
+.about-callout b { font-size: 13px; }
+.about-callout p { font-size: 12px; }
+.about-fact-grid { gap: 12px; margin-top: 22px; }
+.about-fact-grid article { padding: 16px; }
+.about-fact-grid b { font-size: 13px; }
+.about-fact-grid p { font-size: 11px; line-height: 1.65; }
+.about-steps { margin: 22px 0; }
+.about-steps li { gap: 14px; padding-bottom: 18px; }
+.about-steps b { font-size: 14px; }
+.about-steps p { font-size: 12px; }
+.about-boundary { padding: 14px 16px; }
+.about-boundary b { font-size: 13px; }
+.about-boundary span { font-size: 12px; }
+.about-equation-grid { gap: 12px; margin: 20px 0; }
+.about-formula { gap: 8px; padding: 15px 17px; border-radius: 10px; }
+.about-math { overflow-x: auto; color: #edf4fb; font-family: "STIX Two Math", "Cambria Math", "Latin Modern Math", "STIX Two Text", "Times New Roman", serif; font-size: clamp(18px, 1.55vw, 23px); font-weight: 500; line-height: 1.55; letter-spacing: .01em; overflow-wrap: anywhere; font-variant-numeric: lining-nums; }
+.about-formula small { color: #a5b5c6; font-size: 11px; line-height: 1.6; }
+.about-details { padding: 14px 16px; margin: 16px 0; }
+.about-details summary { font-size: 12px; }
+.about-constant-row { gap: 9px; margin-top: 18px; }
+.about-constant-row span { padding: 12px; }
+.about-constant-row b { font-size: 10px; }
+.about-constant-row code { font-size: 12px; }
+.about-section .about-small-note { font-size: 11px; }
+.about-bullet-list { gap: 10px; padding-left: 20px; font-size: 12px; line-height: 1.75; }
+.about-horizon { padding: 15px 17px; margin-top: 20px; }
+.about-horizon p { font-size: 12px; line-height: 1.75; }
+.status-pill { padding: 9px 11px; font-size: 11px; }
+.status-pill small { font-size: 10px; }
+.about-policy-grid { gap: 14px; margin: 20px 0; }
+.about-policy-grid article { padding: 17px; }
+.policy-label { font-size: 9px; }
+.about-policy-grid h3 { font-size: 15px; }
+.about-policy-grid p { min-height: 0; font-size: 12px; }
+.about-policy-grid article > small { font-size: 10px; }
+.about-priority-list { gap: 7px; margin: 18px 0; }
+.about-priority-list span { padding: 9px 10px; font-size: 10px; }
+.about-priority-list b { font-size: 11px; }
+.about-metric-list { gap: 10px; margin-top: 18px; }
+.about-metric-list article { gap: 12px 16px; padding: 14px; }
+.about-metric-list article > div b { font-size: 13px; }
+.about-metric-list article > div span { font-size: 11px; }
+.about-metric-list .about-formula { padding: 11px 13px; }
+.about-metric-list .about-math { font-size: 18px; }
+.about-metric-list article > small { font-size: 10px; line-height: 1.6; }
+.about-example-path { gap: 12px; padding: 17px; margin: 20px 0; }
+.about-example-path span { font-size: 10px; }
+.about-example-path b { font-size: 12px; }
+.about-example-path small { font-size: 10px; }
+.about-example-list { gap: 10px; font-size: 12px; line-height: 1.7; }
+.about-limits-grid { gap: 14px; margin: 20px 0; }
+.about-limits-grid article { padding: 17px; }
+.about-limits-grid h3 { font-size: 14px; }
+.about-limits-grid ul { gap: 8px; font-size: 11px; line-height: 1.65; }
+.about-glossary { gap: 8px; margin-top: 18px; }
+.about-term { padding: 12px 13px; }
+.about-term dt { font-size: 11px; }
+.about-term dd { font-size: 10px; line-height: 1.65; }
+.about-footer { padding-top: 18px; font-size: 11px; }
+
+@media (max-width: 900px) {
+  .about-layout { grid-template-columns: 190px minmax(0, 1fr); gap: 20px; padding: 26px 18px 56px; }
+  .about-section { padding: 24px; }
+  .about-section-heading h2 { font-size: 21px; }
+}
+@media (max-width: 650px) {
+  .about-hero { min-height: 245px; padding: 30px 18px 28px; }
+  .about-layout { display: block; padding: 14px 10px 38px; }
+  .about-toc { margin-bottom: 14px; }
+  .about-section { padding: 20px 17px 22px; margin-bottom: 12px; }
+  .about-section-heading h2 { font-size: 19px; }
+  .about-section > p, .about-details > p { font-size: 13px; }
+  .about-section .about-lead { font-size: 16px; }
+  .about-equation-grid { grid-template-columns: 1fr; }
+  .about-math { font-size: 20px; }
+  .about-metric-list article { grid-template-columns: 1fr; }
+  .about-metric-list article > small { grid-column: 1; }
+  .about-glossary { grid-template-columns: 1fr; }
+  .about-fact-grid, .about-policy-grid, .about-limits-grid { grid-template-columns: 1fr; }
+  .about-constant-row { grid-template-columns: 1fr; }
+  .about-priority-list { grid-template-columns: 1fr; }
+}
 .status-chip { min-width: 164px; border-left-color: rgba(117, 149, 179, .2); }
 .status-chip b { font-size: 12px; }
 .status-chip small { color: #8c9caf; font-size: 10px; }
