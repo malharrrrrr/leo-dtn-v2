@@ -554,7 +554,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .about-boundary span { font-size: 12px; }
 .about-equation-grid { gap: 12px; margin: 20px 0; }
 .about-formula { gap: 8px; padding: 15px 17px; border-radius: 10px; }
-.about-math { overflow-x: auto; color: #edf4fb; font-family: "STIX Two Math", "Cambria Math", "Latin Modern Math", "STIX Two Text", "Times New Roman", serif; font-size: clamp(18px, 1.55vw, 23px); font-weight: 500; line-height: 1.55; letter-spacing: .01em; overflow-wrap: anywhere; font-variant-numeric: lining-nums; }
+.about-math { overflow-x: auto; color: #a8d9ff; font-family: "STIX Two Math", "Cambria Math", "Latin Modern Math", "STIX Two Text", "Times New Roman", serif; font-size: clamp(18px, 1.55vw, 23px); font-weight: 500; line-height: 1.55; letter-spacing: .01em; overflow-wrap: anywhere; font-variant-numeric: lining-nums; }
 .about-formula small { color: #a5b5c6; font-size: 11px; line-height: 1.6; }
 .about-details { padding: 14px 16px; margin: 16px 0; }
 .about-details summary { font-size: 12px; }
