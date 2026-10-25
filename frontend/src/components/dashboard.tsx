@@ -7,7 +7,7 @@ import {
   Pause, Play, Plus, RotateCcw, Satellite, SkipForward, Sparkles, Waypoints,
 } from "lucide-react";
 import { advanceSimulation, createSimulation, getMetrics, getSimulation, postControl, setSimulationPlaybackSpeed } from "@/lib/api";
-import type { BundleConfig, BundleState, ContactConfig, Metrics, NodeConfig, PlaybackSpeed, RoutingPolicy, RunStatus, SimulationConfig, SimulationSnapshot } from "@/lib/contracts";
+import type { BundleConfig, BundleState, Metrics, NodeConfig, PlaybackSpeed, RoutingPolicy, RunStatus, SimulationConfig, SimulationSnapshot } from "@/lib/contracts";
 import { NetworkScene } from "./network-scene";
 import { NetworkTopology } from "./network-topology";
 import { cloneScenarioConfiguration, ScenarioLibrary } from "./scenario-library";
@@ -86,8 +86,6 @@ export function Dashboard() {
   const snapshotRef = useRef<SimulationSnapshot | null>(null);
   const [manualNodeId, setManualNodeId] = useState("SAT-NEW");
   const [manualOrbit, setManualOrbit] = useState({ altitude_km: 550, inclination_deg: 53, raan_deg: 0, phase_deg: 0 });
-  const [showContactForm, setShowContactForm] = useState(false);
-  const [contactDraft, setContactDraft] = useState({ from: "GS-MUMBAI", to: "SAT-01", start: "0", end: "10", rate: "100" });
   const [advanced, setAdvanced] = useState({ ttlSeconds: 21600, bundleSizeMb: 50, bufferGb: 10, linkRateMbps: 100, trafficIntervalSeconds: 60 });
 
   useEffect(() => { snapshotRef.current = snapshot; }, [snapshot]);
@@ -158,21 +156,6 @@ export function Dashboard() {
     }
     setConfiguration((current) => ({ ...current, nodes: [...current.nodes, ...added] }));
     setError(null);
-  };
-
-  const addContact = () => {
-    const id = `C-${contactDraft.from}-${contactDraft.to}-${configuration.contacts.length + 1}`;
-    if (contactDraft.from === contactDraft.to) { setError("A contact must connect two different nodes."); return; }
-    const contact: ContactConfig = {
-      contact_id: id, from_node: contactDraft.from, to_node: contactDraft.to,
-      start_us: Math.round(Number(contactDraft.start) * 1_000_000),
-      end_us: Math.round(Number(contactDraft.end) * 1_000_000),
-      rate_bits_per_second: Math.round(Number(contactDraft.rate || advanced.linkRateMbps) * 1_000_000),
-      propagation_delay_us: 0,
-    };
-    if (!Number.isFinite(contact.start_us) || !Number.isFinite(contact.end_us) || !Number.isFinite(contact.rate_bits_per_second)) { setError("Contact values must be numeric."); return; }
-    setConfiguration((current) => ({ ...current, contacts: [...current.contacts, contact] }));
-    setShowContactForm(false); setError(null);
   };
 
   const removeNode = (nodeId: string) => {
@@ -361,16 +344,11 @@ export function Dashboard() {
           </section>
 
           <section className="panel plan-panel">
-            <div className="panel-heading"><div className="heading-icon violet"><Link2 size={16} /></div><h2>Contact plan</h2><button className="quiet-button" onClick={() => setShowContactForm((value) => !value)}><Plus size={14} /> Add manual</button></div>
+            <div className="panel-heading"><div className="heading-icon violet"><Link2 size={16} /></div><h2>Contact plan</h2></div>
             <label className="geometry-toggle"><input type="checkbox" checked={configuration.orbital_contact_generation ?? false} onChange={(event) => setConfiguration((current) => ({ ...current, orbital_contact_generation: event.target.checked }))} /><span>Generate links from live orbital visibility</span></label>
             {configuration.orbital_contact_generation && <div className="geometry-settings"><label>Minimum station elevation °<input type="number" min="0" max="45" value={configuration.minimum_elevation_deg ?? 10} onChange={(event) => setConfiguration((current) => ({ ...current, minimum_elevation_deg: Number(event.target.value) }))} /></label><label>Geometry sampling (s)<input type="number" min="1" max="300" value={(configuration.contact_sample_interval_us ?? 10_000_000) / 1_000_000} onChange={(event) => setConfiguration((current) => ({ ...current, contact_sample_interval_us: Math.max(100_000, Number(event.target.value) * 1_000_000) }))} /></label></div>}
             <label className="geometry-toggle"><input type="checkbox" checked={configuration.bundle_generation_interval_us != null} onChange={(event) => setConfiguration((current) => ({ ...current, bundle_generation_interval_us: event.target.checked ? Math.round(advanced.trafficIntervalSeconds * 1_000_000) : null }))} /><span>Keep generating bundles at the selected interval</span></label>
             <div className="contact-list">{configuration.contacts.map((contact) => <div className="contact-row" key={contact.contact_id}><span className="contact-led" /><div><b>{contact.from_node} → {contact.to_node}</b><small>{seconds(contact.start_us)}–{seconds(contact.end_us)} · {contact.rate_bits_per_second / 1_000_000} Mbps</small></div><button className="remove-button" title="Remove contact" onClick={() => setConfiguration((current) => ({ ...current, contacts: current.contacts.filter((item) => item.contact_id !== contact.contact_id) }))}>×</button></div>)}</div>
-            {showContactForm && <div className="contact-form">
-              <div className="form-two"><label>From<select value={contactDraft.from} onChange={(event) => setContactDraft((draft) => ({ ...draft, from: event.target.value }))}>{configuration.nodes.map((node) => <option key={node.node_id}>{node.node_id}</option>)}</select></label><label>To<select value={contactDraft.to} onChange={(event) => setContactDraft((draft) => ({ ...draft, to: event.target.value }))}>{configuration.nodes.map((node) => <option key={node.node_id}>{node.node_id}</option>)}</select></label></div>
-              <div className="form-three"><label>Start s<input type="number" min="0" value={contactDraft.start} onChange={(event) => setContactDraft((draft) => ({ ...draft, start: event.target.value }))} /></label><label>End s<input type="number" min="0.001" value={contactDraft.end} onChange={(event) => setContactDraft((draft) => ({ ...draft, end: event.target.value }))} /></label><label>Mbps<input type="number" min="0.001" value={contactDraft.rate} onChange={(event) => setContactDraft((draft) => ({ ...draft, rate: event.target.value }))} /></label></div>
-              <button className="secondary full-width" onClick={addContact}>Add scheduled contact</button>
-            </div>}
             <div className="bundle-config"><div className="subheading"><span>Bundles</span><button className="quiet-button" onClick={addBundle}><Plus size={13} /> Add bundle</button></div>
               {configuration.bundles.map((bundle) => <div className="bundle-config-row" key={bundle.bundle_id}><span className="bundle-dot" /><div><b>{bundle.bundle_id}</b><small>{bundle.source} → {bundle.destination} · {bytes(bundle.payload_bytes)}</small></div><button className="remove-button" onClick={() => setConfiguration((current) => ({ ...current, bundles: current.bundles.filter((item) => item.bundle_id !== bundle.bundle_id) }))}>×</button></div>)}
             </div>
