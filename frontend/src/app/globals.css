@@ -594,6 +594,9 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .about-limits-grid h3 { font-size: 14px; }
 .about-limits-grid ul { gap: 8px; font-size: 11px; line-height: 1.65; }
 .about-glossary { gap: 8px; margin-top: 18px; }
+.about-notation { margin: 18px 0; padding: 14px; border: 1px solid rgba(91, 150, 188, .22); border-radius: 10px; background: rgba(11, 25, 38, .56); }
+.about-notation > b { color: #9bd5ef; font-size: 12px; letter-spacing: .04em; }
+.about-notation .about-glossary { margin-top: 9px; }
 .about-term { padding: 12px 13px; }
 .about-term dt { font-size: 11px; }
 .about-term dd { font-size: 10px; line-height: 1.65; }
