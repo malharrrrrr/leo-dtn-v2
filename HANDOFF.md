@@ -134,6 +134,11 @@ On Unix, use `backend/.venv/bin/python`. Do not make engine tests depend on runn
 - Focused orbit suite passed: `backend/.venv/Scripts/python.exe -m pytest -c backend/pyproject.toml -q backend/tests/test_orbit.py` (9 passed).
 - Full backend suite: 45 passed; 8 API tests could not start their local Uvicorn subprocess because local socket access was unavailable in this environment. `frontend/next-env.d.ts` remains a pre-existing unrelated modification and is excluded from this task.
 
+### Interactive selected-node panel (2026-10-25)
+
+- The Simulation node panel now lists all configured nodes with a scrollable list, provides an “All nodes” return button from node details, and adds “Follow node” / “Stop following node” controls. Following a node switches to the 3D globe and targets its engine-reported position; bundle-follow clears node-follow and vice versa.
+- Frontend verification passed: from `frontend/`, `npm run typecheck` and `npm run lint`.
+
 Next, handle the Next.js security upgrade when the user chooses whether to use a separate worktree or the current checkout. Then continue interactive checks for the 3D playback, preset loading, multi-seed run-level CSV download, and mobile layout. Keep claims about statistical significance limited to an adequately powered analysis; the included three-seed sweep is descriptive only.
 
 After substantial work, update this file’s current state, verification results, and suggested next task so another agent can resume without reconstructing the entire conversation.

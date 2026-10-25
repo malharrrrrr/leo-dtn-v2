@@ -9,6 +9,7 @@ type Props = {
   snapshot: SimulationSnapshot | null;
   selectedBundleId: string | null;
   followPacket: boolean;
+  followNodeId: string | null;
   onSelectNode: (nodeId: string) => void;
   onSelectBundle: (bundleId: string) => void;
 };
@@ -171,11 +172,11 @@ function clearsEarth(a: THREE.Vector3, b: THREE.Vector3): boolean {
   return a.clone().addScaledVector(ab, t).lengthSq() >= 1.001 * 1.001;
 }
 
-export function NetworkScene({ snapshot, selectedBundleId, followPacket, onSelectNode, onSelectBundle }: Props) {
+export function NetworkScene({ snapshot, selectedBundleId, followPacket, followNodeId, onSelectNode, onSelectBundle }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<{ nodeId: string; x: number; y: number } | null>(null);
-  const stateRef = useRef({ snapshot, selectedBundleId, followPacket, onSelectNode, onSelectBundle });
-  stateRef.current = { snapshot, selectedBundleId, followPacket, onSelectNode, onSelectBundle };
+  const stateRef = useRef({ snapshot, selectedBundleId, followPacket, followNodeId, onSelectNode, onSelectBundle });
+  stateRef.current = { snapshot, selectedBundleId, followPacket, followNodeId, onSelectNode, onSelectBundle };
 
   useEffect(() => {
     const host = hostRef.current;
@@ -488,8 +489,15 @@ export function NetworkScene({ snapshot, selectedBundleId, followPacket, onSelec
             packetTrail.computeLineDistances(); packetTrail.visible = true;
           } else if (packetTrail) packetTrail.visible = false;
         }
+        const followedNode = data.followNodeId ? positions.get(data.followNodeId) : undefined;
+        if (followedNode) {
+          const range = Math.max(1.8, camera.position.distanceTo(controls.target));
+          controls.target.copy(followedNode);
+          camera.position.copy(followedNode.clone().normalize().multiplyScalar(followedNode.length() + range));
+        } else if (!data.followPacket) {
+          controls.target.lerp(new THREE.Vector3(0, 0, 0), 0.04);
+        }
       }
-      if (!data.followPacket) controls.target.lerp(new THREE.Vector3(0, 0, 0), 0.04);
       controls.update();
       renderer.render(scene, camera);
     };

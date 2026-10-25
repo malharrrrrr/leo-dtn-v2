@@ -289,8 +289,13 @@ input:focus, select:focus { border-color: #3d91e7; box-shadow: 0 0 0 2px rgba(54
 .live-indicator { display: flex; align-items: center; gap: 6px; color: #8d9cad; font: 8px var(--font-plex-mono), monospace; text-transform: uppercase; }
 .live-indicator i { display: block; width: 6px; height: 6px; }
 .node-picker { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.node-picker { max-height: 190px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #314255 transparent; }
 .node-picker button { display: flex; justify-content: space-between; padding: 6px 8px; border: 1px solid #253448; border-radius: 6px; background: #141f2d; color: #c6d4e3; text-align: left; font-size: 9px; }
 .node-picker button:hover { border-color: #2874ae; }.node-picker span { color: #70a9d6; font: 8px var(--font-plex-mono), monospace; }
+.node-back-button { border: 1px solid #2c4256; border-radius: 6px; padding: 5px 8px; background: #152230; color: #a9c8df; font-size: 9px; font-weight: 700; cursor: pointer; }
+.node-back-button:hover { border-color: #3186b1; color: #d8f2ff; }
+.follow-node-button { width: 100%; margin-top: 12px; padding: 9px 10px; border: 1px solid #2f6078; border-radius: 7px; background: #142b39; color: #85d6ee; font-size: 10px; font-weight: 700; cursor: pointer; }
+.follow-node-button:hover, .follow-node-button.enabled { border-color: #1a94a8; background: #103843; color: #73e3e7; }
 .data-note { display: flex; align-items: flex-start; gap: 7px; padding: 2px 3px; color: #718196; font-size: 8px; line-height: 1.45; }
 .data-note i { width: 6px; height: 6px; flex: 0 0 auto; margin-top: 3px; border-radius: 50%; background: #35c4a0; }
 .spin { animation: spin 1s linear infinite; }
