@@ -38,6 +38,10 @@ function Notation({ children }: { children: ReactNode }) {
   return <div className="about-notation"><b>Symbols and units</b><dl className="about-glossary">{children}</dl></div>;
 }
 
+function SymbolTerm({ symbol, unit, children }: { symbol: string; unit?: string; children: ReactNode }) {
+  return <div className="about-term"><dt><span className="notation-symbol">{symbol}</span>{unit && <> <span className="notation-unit">({unit})</span></>}</dt><dd>{children}</dd></div>;
+}
+
 export default function AboutPage() {
   return (
     <main className="about-shell">
@@ -115,20 +119,20 @@ export default function AboutPage() {
               <Formula>T = 2π / n       v = √(μ / r)</Formula>
             </div>
             <Notation>
-              <Term name="Rₑ · km">Mean spherical-Earth radius: 6,371 km.</Term>
-              <Term name="h · km">Satellite altitude above the Earth's surface.</Term>
-              <Term name="r · km">Orbital radius, measured from Earth's centre; r = Rₑ + h.</Term>
-              <Term name="μ · km³/s²">Earth's gravitational parameter, 398,600.4418 km³/s².</Term>
-              <Term name="n · rad/s">Mean angular speed of the circular orbit, √(μ/r³).</Term>
-              <Term name="θ(t), θ₀ · rad">Current orbital phase at elapsed time t, and the phase at the simulation epoch; configured phase values in degrees are converted to radians.</Term>
-              <Term name="t · s">Elapsed simulated time from the orbit epoch. The engine stores time as integer microseconds and converts for propagation.</Term>
-              <Term name="T · s; v · km/s">Orbital period and circular orbital speed.</Term>
-              <Term name="Ω, i · rad in equations">RAAN and inclination; they orient the orbital plane. Configuration values are supplied in degrees and converted to radians for these equations.</Term>
-              <Term name="sin, cos; π">Sine and cosine functions, and the circle constant π (about 3.14159). Trigonometric arguments in the equations are radians.</Term>
-              <Term name="xᵢ, yᵢ, zᵢ · km">Position coordinates in the Earth-centred inertial (ECI) frame.</Term>
-              <Term name="xₑ, yₑ, zₑ · km">Position coordinates in the Earth-centred Earth-fixed (ECEF) frame.</Term>
-              <Term name="ωₑ · rad/s">Earth's rotation rate, 7.2921150 × 10⁻⁵ rad/s.</Term>
-              <Term name="φ, λ · rad in equations">Ground-station latitude and longitude. Configuration values are supplied in degrees.</Term>
+              <SymbolTerm symbol="Rₑ" unit="km">Mean spherical-Earth radius: 6,371 km.</SymbolTerm>
+              <SymbolTerm symbol="h" unit="km">Satellite altitude above the Earth's surface.</SymbolTerm>
+              <SymbolTerm symbol="r" unit="km">Orbital radius, measured from Earth's centre; r = Rₑ + h.</SymbolTerm>
+              <SymbolTerm symbol="μ" unit="km³/s²">Earth's gravitational parameter, 398,600.4418 km³/s².</SymbolTerm>
+              <SymbolTerm symbol="n" unit="rad/s">Mean angular speed of the circular orbit, √(μ/r³).</SymbolTerm>
+              <SymbolTerm symbol="θ(t), θ₀" unit="rad">Current orbital phase at elapsed time t, and the phase at the simulation epoch; configured phase values in degrees are converted to radians.</SymbolTerm>
+              <SymbolTerm symbol="t" unit="s">Elapsed simulated time from the orbit epoch. The engine stores time as integer microseconds and converts for propagation.</SymbolTerm>
+              <SymbolTerm symbol="T; v" unit="s; km/s">Orbital period and circular orbital speed, respectively.</SymbolTerm>
+              <SymbolTerm symbol="Ω, i" unit="rad">RAAN and inclination; they orient the orbital plane. Configuration values are supplied in degrees and converted to radians for these equations.</SymbolTerm>
+              <SymbolTerm symbol="sin, cos; π">Sine and cosine functions, and the circle constant π (about 3.14159). Trigonometric arguments in the equations are radians.</SymbolTerm>
+              <SymbolTerm symbol="xᵢ, yᵢ, zᵢ" unit="km">Position coordinates in the Earth-centred inertial (ECI) frame.</SymbolTerm>
+              <SymbolTerm symbol="xₑ, yₑ, zₑ" unit="km">Position coordinates in the Earth-centred Earth-fixed (ECEF) frame.</SymbolTerm>
+              <SymbolTerm symbol="ωₑ" unit="rad/s">Earth's rotation rate, 7.2921150 × 10⁻⁵ rad/s.</SymbolTerm>
+              <SymbolTerm symbol="φ, λ" unit="rad">Ground-station latitude and longitude. Configuration values are supplied in degrees.</SymbolTerm>
             </Notation>
             <details className="about-details"><summary>Show the position equations</summary>
               <p>In the Earth-centred inertial (ECI) frame, with RAAN Ω, inclination i, and orbital phase θ, all trigonometric angles are in radians:</p>
@@ -151,14 +155,13 @@ export default function AboutPage() {
               <Formula>e = (180/π) asin(((rₛ − r_g) · r_g) / (‖rₛ − r_g‖ ‖r_g‖)) ≥ eₘᵢₙ</Formula>
             </div>
             <Notation>
-              <Term name="a, b · km vectors">ECEF position vectors of the two endpoints of a candidate link.</Term>
-              <Term name="u · unitless">Fraction of the way along the straight line from a to b; it ranges from 0 to 1.</Term>
-              <Term name="‖x‖ · km">Length of vector x. The minimum must be at least Earth radius Rₑ for the link to clear Earth.</Term>
-              <Term name="rₛ, r_g · km vectors">ECEF position vectors of the satellite and ground station.</Term>
-              <Term name="e · degrees">Elevation angle of the satellite above the ground station's local horizon. asin is inverse sine and returns radians; multiplying by 180/π converts it to degrees.</Term>
-              <Term name="eₘᵢₙ · degrees">Configured minimum elevation, 10° by default.</Term>
-              <Term name="·">Vector dot product. The ground station's position vector points along its local vertical.</Term>
-              <Term name="π">Circle constant, about 3.14159, used to convert radians to degrees.</Term>
+              <SymbolTerm symbol="a, b" unit="km vectors">ECEF position vectors of the two endpoints of a candidate link.</SymbolTerm>
+              <SymbolTerm symbol="u" unit="unitless">Fraction of the way along the straight line from a to b; it ranges from 0 to 1.</SymbolTerm>
+              <SymbolTerm symbol="‖x‖" unit="km">Length of vector x. The minimum must be at least Earth radius Rₑ for the link to clear Earth.</SymbolTerm>
+              <SymbolTerm symbol="rₛ, r_g" unit="km vectors">ECEF position vectors of the satellite and ground station.</SymbolTerm>
+              <SymbolTerm symbol="e, eₘᵢₙ" unit="degrees">Elevation angle of the satellite above the ground station's local horizon, and the configured minimum (10° by default). asin is inverse sine and returns radians; multiplying by 180/π converts it to degrees.</SymbolTerm>
+              <SymbolTerm symbol="·">Vector dot product. The ground station's position vector points along its local vertical.</SymbolTerm>
+              <SymbolTerm symbol="asin, π">Inverse sine and the circle constant (about 3.14159), used to calculate elevation and convert radians to degrees.</SymbolTerm>
             </Notation>
             <p>Satellite-to-satellite links must clear the spherical Earth. Ground links must also meet the minimum elevation angle.</p>
             <ul className="about-bullet-list">
@@ -180,13 +183,13 @@ export default function AboutPage() {
               <Formula>t_expiry = t_create + TTL</Formula>
             </div>
             <Notation>
-              <Term name="B · bytes">Complete bundle payload size.</Term>
-              <Term name="R₍bps₎ · bits/s">Data rate of the directed contact.</Term>
-              <Term name="d · μs">Serialization duration, rounded up to an integer microsecond. One byte is eight bits.</Term>
-              <Term name="t_start, t_arrival, t_end · μs">Transmission start, last-bit arrival at the receiver, and contact end times.</Term>
-              <Term name="p · μs">Configured propagation delay after serialization; zero by default.</Term>
-              <Term name="t_create, t_expiry, TTL · μs">Bundle creation time, absolute expiry time, and its time-to-live. Expiry equals creation time plus TTL.</Term>
-              <Term name="⌈x⌉">Ceiling function: round x upward to the next integer.</Term>
+              <SymbolTerm symbol="B" unit="bytes">Complete bundle payload size.</SymbolTerm>
+              <SymbolTerm symbol="R₍bps₎" unit="bits/s">Data rate of the directed contact.</SymbolTerm>
+              <SymbolTerm symbol="d" unit="μs">Serialization duration, rounded up to an integer microsecond. One byte is eight bits.</SymbolTerm>
+              <SymbolTerm symbol="t_start, t_arrival, t_end" unit="μs">Transmission start, last-bit arrival at the receiver, and contact end times.</SymbolTerm>
+              <SymbolTerm symbol="p" unit="μs">Configured propagation delay after serialization; zero by default.</SymbolTerm>
+              <SymbolTerm symbol="t_create, t_expiry, TTL" unit="μs">Bundle creation time, absolute expiry time, and its time-to-live. Expiry equals creation time plus TTL.</SymbolTerm>
+              <SymbolTerm symbol="⌈x⌉">Ceiling function: round x upward to the next integer.</SymbolTerm>
             </Notation>
             <p>The sender holds the entire bundle through serialization and propagation. Only after the receiver has room and accepts the bundle does the sender release it. If a contact ends too early, an interruption happens, or the receiver has no buffer space, the transfer fails and the sender keeps the complete bundle for a later attempt. Partial fragments are not sent.</p>
             <div className="about-status-row"><span className="status-pill queued">Queued <small>stored and waiting</small></span><span className="status-pill transmitting">Transmitting <small>being serialized</small></span><span className="status-pill transit">In transit <small>bits propagating</small></span><span className="status-pill delivered">Delivered <small>accepted at destination</small></span><span className="status-pill expired">Expired <small>TTL elapsed</small></span></div>
@@ -200,11 +203,11 @@ export default function AboutPage() {
               <article><span className="policy-label baseline">BASELINE</span><h3>Static minimum hop</h3><p>Finds a path with the fewest links in the union of known contacts. The chosen next hop can be poorly timed or make the bundle wait, so this is a deliberately weak comparator for intermittent links.</p><Formula>minimize number of hops</Formula><small>Contact timing still gates actual transmission.</small></article>
             </div>
             <Notation>
-              <Term name="k · hop index">Identifies one hop in the candidate route.</Term>
-              <Term name="tₖ · μs">Time the bundle is available at the current node after hop k.</Term>
-              <Term name="aₖ, bₖ · μs">Opening and closing times of the contact used for hop k.</Term>
-              <Term name="dₖ, pₖ · μs">Serialization duration and propagation delay for hop k.</Term>
-              <Term name="max(tₖ, aₖ)">The hop cannot start until both the bundle has arrived and the contact has opened; the difference is waiting time.</Term>
+              <SymbolTerm symbol="k" unit="hop index">Identifies one hop in the candidate route.</SymbolTerm>
+              <SymbolTerm symbol="tₖ" unit="μs">Time the bundle is available at the current node after hop k.</SymbolTerm>
+              <SymbolTerm symbol="aₖ, bₖ" unit="μs">Opening and closing times of the contact used for hop k.</SymbolTerm>
+              <SymbolTerm symbol="dₖ, pₖ" unit="μs">Serialization duration and propagation delay for hop k.</SymbolTerm>
+              <SymbolTerm symbol="max(tₖ, aₖ)">The hop cannot start until both the bundle has arrived and the contact has opened; the difference is waiting time.</SymbolTerm>
             </Notation>
             <p>This is a planner over the generated contact schedule—not Contact Graph Routing (CGR), Epidemic Routing, or another standards-based protocol.</p>
             <div className="about-callout muted"><CircleHelp size={18} /><div><b>A prediction is not a guarantee</b><p>The planner can account for time and waiting in its known contact plan, but it does not know future contention from other bundles or guarantee future buffer admission. Sampling can also miss short visibility windows.</p></div></div>
@@ -217,10 +220,10 @@ export default function AboutPage() {
             <p>At an exact tie between expiry and delivery, expiry wins. A random seed makes seeded choices reproducible. In paired preset comparisons, a versioned SHA-256 mapping gives each satellite a repeatable phase; the same seed and satellite ID receive the same phase, and both routing policies get the same realization.</p>
             <Formula note="For paired preset comparisons, hash the seed and stable satellite ID using the versioned phase mapping, then take the first 64 SHA-256 bits as U.">phase_deg = 360 × U / 2⁶⁴</Formula>
             <Notation>
-              <Term name="phase_deg · degrees">Satellite phase assigned for this seeded comparison realization, from 0° up to (but not including) 360°.</Term>
-              <Term name="U · integer">Unsigned integer from 0 to 2⁶⁴ − 1, formed from the first 64 bits of the SHA-256 digest.</Term>
-              <Term name="2⁶⁴">Number of possible 64-bit unsigned values; dividing U by this maps it to a fraction from 0 to 1.</Term>
-              <Term name="seed; node_id">The explicit integer random seed and the satellite's stable text identifier used as inputs to the phase hash.</Term>
+              <SymbolTerm symbol="phase_deg" unit="degrees">Satellite phase assigned for this seeded comparison realization, from 0° up to (but not including) 360°.</SymbolTerm>
+              <SymbolTerm symbol="U" unit="integer">Unsigned integer from 0 to 2⁶⁴ − 1, formed from the first 64 bits of the SHA-256 digest.</SymbolTerm>
+              <SymbolTerm symbol="2⁶⁴">Number of possible 64-bit unsigned values; dividing U by this maps it to a fraction from 0 to 1.</SymbolTerm>
+              <SymbolTerm symbol="seed; node_id" unit="integer; text">The explicit integer random seed and the satellite's stable text identifier used as inputs to the phase hash.</SymbolTerm>
               <Term name="SHA-256">A deterministic hash function; the project uses its first 64 output bits for U.</Term>
             </Notation>
             <p className="about-small-note">The hashed text is <code>leo-dtn-orbit-phase-v1:{"{seed}"}:{"{node_id}"}</code>. Identical seed and satellite ID therefore yield identical phases across paired presets.</p>
@@ -239,12 +242,12 @@ export default function AboutPage() {
               <article><div><b>Contact utilization</b><span>How much scheduled directed-link capacity carried completed payloads?</span></div><Formula>serialized payload bits / scheduled capacity bits</Formula><small>Scheduled capacity is rate × eligible contact duration clipped to the measured interval. Interrupted partial bits are discarded.</small></article>
             </div>
             <Notation>
-              <Term name="H · μs">Observation cutoff: the simulated time at which outcomes are measured.</Term>
-              <Term name="G">Set of all bundle-generation attempts made by time H, including source-buffer rejections.</Term>
-              <Term name="D">Subset of G delivered to their destinations by time H.</Term>
-              <Term name="|X|">Number of elements in set X; therefore |D|/|G| is delivered bundles divided by generation attempts.</Term>
-              <Term name="occupancy(t) · bytes">Total payload bytes held in all node buffers at simulated time t.</Term>
-              <Term name="t · μs; ∫₀ᴴ">Simulated time and the time integral from the start of the run through cutoff H. Dividing byte-microseconds by H gives mean occupied bytes.</Term>
+              <SymbolTerm symbol="H" unit="μs">Observation cutoff: the simulated time at which outcomes are measured.</SymbolTerm>
+              <SymbolTerm symbol="G">Set of all bundle-generation attempts made by time H, including source-buffer rejections.</SymbolTerm>
+              <SymbolTerm symbol="D">Subset of G delivered to their destinations by time H.</SymbolTerm>
+              <SymbolTerm symbol="|X|" unit="count">Number of elements in set X; therefore |D|/|G| is delivered bundles divided by generation attempts.</SymbolTerm>
+              <SymbolTerm symbol="occupancy(t)" unit="bytes">Total payload bytes held in all node buffers at simulated time t.</SymbolTerm>
+              <SymbolTerm symbol="t, ∫₀ᴴ" unit="μs">Simulated time and the time integral from the start of the run through cutoff H. Dividing byte-microseconds by H gives mean occupied bytes.</SymbolTerm>
             </Notation>
             <div className="about-horizon"><FlaskConical size={17} /><p><b>Cutoff means “not yet by this time”</b><br />At H, pending queued, transmitting, or propagating bundles count as undelivered for delivery ratio. They are right-censored at the cutoff, not automatically expired. The dashboard's small seed sweeps are descriptive and do not compute significance tests or confidence intervals.</p></div>
           </section>
