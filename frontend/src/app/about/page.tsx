@@ -161,7 +161,7 @@ export default function AboutPage() {
               <SymbolTerm symbol="rₛ, r_g" unit="km">Three-dimensional ECEF position vectors of the satellite and ground station; each coordinate is measured in kilometers.</SymbolTerm>
               <SymbolTerm symbol="e, eₘᵢₙ" unit="degrees">Elevation angle of the satellite above the ground station's local horizon, and the configured minimum (10° by default). asin is inverse sine and returns radians; multiplying by 180/π converts it to degrees.</SymbolTerm>
               <SymbolTerm symbol="·">Vector dot product. The ground station's position vector points along its local vertical.</SymbolTerm>
-              <SymbolTerm symbol="asin, π">Inverse sine and the circle constant (about 3.14159), used to calculate elevation and convert radians to degrees.</SymbolTerm>
+              <SymbolTerm symbol="asin, π">asin takes the normalized dot-product value in the elevation equation and returns an angle in radians. π is the circle constant (about 3.14159); multiplying by 180/π converts that angle to degrees.</SymbolTerm>
             </Notation>
             <p>Satellite-to-satellite links must clear the spherical Earth. Ground links must also meet the minimum elevation angle.</p>
             <ul className="about-bullet-list">
