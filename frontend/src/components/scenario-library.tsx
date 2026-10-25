@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Activity, ArrowDownRight, Check, ChevronRight, CircleHelp, Clock3, Globe2, Layers3, LoaderCircle, Radio, Satellite, Waypoints } from "lucide-react";
 import { getScenario, getScenarios } from "@/lib/api";
 import type { ScenarioDetails, ScenarioSummary, SimulationConfig } from "@/lib/contracts";
@@ -16,31 +16,52 @@ export function ScenarioLibrary({ canLoadPreset, onLoadPreset }: ScenarioLibrary
   const [loadingList, setLoadingList] = useState(true);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const detailsRequestId = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
-    getScenarios().then(async (items) => {
+    getScenarios().then((items) => {
       if (cancelled) return;
       setScenarios(items);
+      setLoadingList(false);
       if (items[0]) {
+        const requestId = ++detailsRequestId.current;
         setLoadingDetails(true);
-        const details = await getScenario(items[0].scenario_id);
-        if (!cancelled) setSelected(details);
+        getScenario(items[0].scenario_id).then((details) => {
+          if (!cancelled && detailsRequestId.current === requestId) setSelected(details);
+        }).catch((cause: unknown) => {
+          if (!cancelled && detailsRequestId.current === requestId) {
+            setError(cause instanceof Error ? cause.message : "Could not load scenario details.");
+          }
+        }).finally(() => {
+          if (!cancelled && detailsRequestId.current === requestId) setLoadingDetails(false);
+        });
       }
     }).catch((cause: unknown) => {
-      if (!cancelled) setError(cause instanceof Error ? cause.message : "Could not load scenario presets.");
+      if (!cancelled) {
+        setError(cause instanceof Error ? cause.message : "Could not load scenario presets.");
+        setLoadingList(false);
+      }
     }).finally(() => {
-      if (!cancelled) { setLoadingList(false); setLoadingDetails(false); }
+      if (!cancelled) setLoadingList(false);
     });
-    return () => { cancelled = true; };
+    return () => { cancelled = true; detailsRequestId.current += 1; };
   }, []);
 
   const inspect = async (scenarioId: string) => {
+    const requestId = ++detailsRequestId.current;
     setLoadingDetails(true);
     setError(null);
-    try { setSelected(await getScenario(scenarioId)); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : "Could not load scenario details."); }
-    finally { setLoadingDetails(false); }
+    try {
+      const details = await getScenario(scenarioId);
+      if (detailsRequestId.current === requestId) setSelected(details);
+    } catch (cause) {
+      if (detailsRequestId.current === requestId) {
+        setError(cause instanceof Error ? cause.message : "Could not load scenario details.");
+      }
+    } finally {
+      if (detailsRequestId.current === requestId) setLoadingDetails(false);
+    }
   };
 
   if (loadingList) return <main className="scenario-page"><div className="scenario-loading"><LoaderCircle className="spin" size={20} /> Loading scenario presets…</div></main>;
