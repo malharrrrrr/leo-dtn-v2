@@ -128,7 +128,7 @@ export default function AboutPage() {
               <SymbolTerm symbol="t" unit="s">Elapsed simulated time from the orbit epoch. The engine stores time as integer microseconds and converts for propagation.</SymbolTerm>
               <SymbolTerm symbol="T; v" unit="s; km/s">Orbital period and circular orbital speed, respectively.</SymbolTerm>
               <SymbolTerm symbol="Ω, i" unit="rad">RAAN and inclination; they orient the orbital plane. Configuration values are supplied in degrees and converted to radians for these equations.</SymbolTerm>
-              <SymbolTerm symbol="sin, cos; π">Sine and cosine functions, and the circle constant π (about 3.14159). Trigonometric arguments in the equations are radians.</SymbolTerm>
+              <SymbolTerm symbol="sin, cos">Sine and cosine functions. Trigonometric arguments in the equations are radians.</SymbolTerm>
               <SymbolTerm symbol="xᵢ, yᵢ, zᵢ" unit="km">Position coordinates in the Earth-centred inertial (ECI) frame.</SymbolTerm>
               <SymbolTerm symbol="xₑ, yₑ, zₑ" unit="km">Position coordinates in the Earth-centred Earth-fixed (ECEF) frame.</SymbolTerm>
               <SymbolTerm symbol="ωₑ" unit="rad/s">Earth's rotation rate, 7.2921150 × 10⁻⁵ rad/s.</SymbolTerm>
@@ -161,7 +161,7 @@ export default function AboutPage() {
               <SymbolTerm symbol="rₛ, r_g" unit="km">Three-dimensional ECEF position vectors of the satellite and ground station; each coordinate is measured in kilometers.</SymbolTerm>
               <SymbolTerm symbol="e, eₘᵢₙ" unit="degrees">Elevation angle of the satellite above the ground station's local horizon, and the configured minimum (10° by default). asin is inverse sine and returns radians; multiplying by 180/π converts it to degrees.</SymbolTerm>
               <SymbolTerm symbol="·">Vector dot product. The ground station's position vector points along its local vertical.</SymbolTerm>
-              <SymbolTerm symbol="asin, π">asin takes the normalized dot-product value in the elevation equation and returns an angle in radians. π is the circle constant (about 3.14159); multiplying by 180/π converts that angle to degrees.</SymbolTerm>
+              <SymbolTerm symbol="asin">Inverse sine; it returns the angle whose sine equals the input value, in radians.</SymbolTerm>
             </Notation>
             <p>Satellite-to-satellite links must clear the spherical Earth. Ground links must also meet the minimum elevation angle.</p>
             <ul className="about-bullet-list">
