@@ -177,14 +177,14 @@ export default function AboutPage() {
             <div className="about-section-heading"><span className="about-section-icon cyan"><ArrowRight size={18} /></span><div><span className="eyebrow">05 · STORE AND CARRY</span><h2>What happens to a bundle?</h2></div></div>
             <p>A bundle is a complete application-level payload with a source, destination, size, creation time, lifetime, holder, status, and forwarding history. It is kept at its current node until another node accepts it.</p>
             <div className="about-equation-grid">
-              <Formula>d₍μs₎ = ⌈B × 8 × 1,000,000 / R₍bps₎⌉</Formula>
+              <Formula>d = ⌈B × 8 × 1,000,000 / R⌉</Formula>
               <Formula>t_arrival = t_start + d + p</Formula>
               <Formula>t_arrival &lt; t_end</Formula>
               <Formula>t_expiry = t_create + TTL</Formula>
             </div>
             <Notation>
               <SymbolTerm symbol="B" unit="bytes">Complete bundle payload size.</SymbolTerm>
-              <SymbolTerm symbol="R₍bps₎" unit="bits/s">Data rate of the directed contact.</SymbolTerm>
+              <SymbolTerm symbol="R" unit="bits/s">Data rate of the directed contact.</SymbolTerm>
               <SymbolTerm symbol="d" unit="μs">Serialization duration, rounded up to an integer microsecond. One byte is eight bits.</SymbolTerm>
               <SymbolTerm symbol="t_start, t_arrival, t_end" unit="μs">Transmission start, last-bit arrival at the receiver, and contact end times.</SymbolTerm>
               <SymbolTerm symbol="p" unit="μs">Configured propagation delay after serialization; zero by default.</SymbolTerm>
@@ -218,9 +218,9 @@ export default function AboutPage() {
             <p>The engine represents time as integer microseconds from the start of a run. It never reads wall-clock time to make a routing or forwarding decision. A run advances by processing the next event, ordered by timestamp, event priority, then a stable insertion sequence.</p>
             <div className="about-priority-list"><span>1 <b>Bundle expiration</b></span><span>2 <b>Contact end or interruption</b></span><span>3 <b>Contact start</b></span><span>4 <b>Serialization completion</b></span><span>5 <b>Arrival and receiver admission</b></span><span>6 <b>Bundle generation</b></span><span>7 <b>Routing and dispatch</b></span></div>
             <p>At an exact tie between expiry and delivery, expiry wins. A random seed makes seeded choices reproducible. In paired preset comparisons, a versioned SHA-256 mapping gives each satellite a repeatable phase; the same seed and satellite ID receive the same phase, and both routing policies get the same realization.</p>
-            <Formula note="For paired preset comparisons, hash the seed and stable satellite ID using the versioned phase mapping, then take the first 64 SHA-256 bits as U.">phase_deg = 360 × U / 2⁶⁴</Formula>
+            <Formula note="For paired preset comparisons, hash the seed and stable satellite ID using the versioned phase mapping, then take the first 64 SHA-256 bits as U.">phase = 360 × U / 2⁶⁴</Formula>
             <Notation>
-              <SymbolTerm symbol="phase_deg" unit="degrees">Satellite phase assigned for this seeded comparison realization, from 0° up to (but not including) 360°.</SymbolTerm>
+              <SymbolTerm symbol="phase" unit="degrees">Satellite phase assigned for this seeded comparison realization, from 0° up to (but not including) 360°.</SymbolTerm>
               <SymbolTerm symbol="U" unit="integer">Unsigned integer from 0 to 2⁶⁴ − 1, formed from the first 64 bits of the SHA-256 digest.</SymbolTerm>
               <SymbolTerm symbol="2⁶⁴">Number of possible 64-bit unsigned values; dividing U by this maps it to a fraction from 0 to 1.</SymbolTerm>
               <SymbolTerm symbol="seed; node_id" unit="integer; text">The explicit integer random seed and the satellite's stable text identifier used as inputs to the phase hash.</SymbolTerm>
