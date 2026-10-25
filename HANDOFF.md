@@ -128,6 +128,12 @@ On Unix, use `backend/.venv/bin/python`. Do not make engine tests depend on runn
 - Content follows `PROJECT.md`, `docs/simulation-model.md`, `docs/routing.md`, `docs/experiments.md`, and `docs/final-evaluation.md`. It describes this as an academic simulator and does not claim full Bundle Protocol compliance, operational accuracy, RF modelling, or statistical significance.
 - Current worktree includes the Next-generated `frontend/next-env.d.ts` dev-reference change that was present before this About-page task; preserve it unless intentionally regenerating it during verification.
 
+### Orbital contact-plan startup optimization (2026-10-25)
+
+- `backend/leo_dtn/orbit.py` now uses the analytic central-angle visibility cutoff directly for circular-orbit pairs and ground-station/orbit pairs at ordinary samples. It retains the exact Earth-clearance/elevation calculation near a visibility boundary and for static-coordinate cases. This reduces repeated geometry work without shortening the contact plan or changing its horizon/sampling assumptions.
+- Focused orbit suite passed: `backend/.venv/Scripts/python.exe -m pytest -c backend/pyproject.toml -q backend/tests/test_orbit.py` (9 passed).
+- Full backend suite: 45 passed; 8 API tests could not start their local Uvicorn subprocess because local socket access was unavailable in this environment. `frontend/next-env.d.ts` remains a pre-existing unrelated modification and is excluded from this task.
+
 Next, handle the Next.js security upgrade when the user chooses whether to use a separate worktree or the current checkout. Then continue interactive checks for the 3D playback, preset loading, multi-seed run-level CSV download, and mobile layout. Keep claims about statistical significance limited to an adequately powered analysis; the included three-seed sweep is descriptive only.
 
 After substantial work, update this file’s current state, verification results, and suggested next task so another agent can resume without reconstructing the entire conversation.

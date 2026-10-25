@@ -167,6 +167,24 @@ def generate_contact_plan(
             cosine_threshold = _cosine_visibility_threshold(
                 a, b, minimum_elevation_deg=minimum_elevation_deg
             )
+            # For circular-orbit pairs, the central-angle cutoffs above are
+            # the geometry itself: satellite-to-satellite horizon overlap or
+            # satellite elevation at a ground station. Avoid repeating the
+            # full segment/elevation calculation at every sample. Keep the
+            # exact geometry path for hand-authored static coordinates.
+            analytic_visibility = cosine_threshold is not None and (
+                (a.orbit is not None and b.orbit is not None)
+                or (
+                    a.kind == NodeKind.GROUND_STATION
+                    and b.orbit is not None
+                )
+                or (
+                    b.kind == NodeKind.GROUND_STATION
+                    and a.orbit is not None
+                )
+            )
+            inv_norm_a = 1.0 / _node_radius(a) if analytic_visibility else 0.0
+            inv_norm_b = 1.0 / _node_radius(b) if analytic_visibility else 0.0
 
             def is_visible_at_positions(positions: dict[str, tuple[float, float, float] | None]) -> bool:
                 state_a = positions[a.node_id]
@@ -174,20 +192,43 @@ def generate_contact_plan(
                 if state_a is None or state_b is None:
                     return False
                 if cosine_threshold is not None:
-                    radius_a = math.sqrt(sum(coordinate * coordinate for coordinate in state_a))
-                    radius_b = math.sqrt(sum(coordinate * coordinate for coordinate in state_b))
-                    cosine_separation = sum(state_a[j] * state_b[j] for j in range(3)) / (radius_a * radius_b)
+                    if analytic_visibility:
+                        cosine_separation = sum(state_a[j] * state_b[j] for j in range(3)) * inv_norm_a * inv_norm_b
+                    else:
+                        radius_a = math.sqrt(sum(coordinate * coordinate for coordinate in state_a))
+                        radius_b = math.sqrt(sum(coordinate * coordinate for coordinate in state_b))
+                        cosine_separation = sum(state_a[j] * state_b[j] for j in range(3)) / (radius_a * radius_b)
                     if cosine_separation < cosine_threshold:
                         return False
+                    if analytic_visibility:
+                        # Resolve only the numerically ambiguous boundary with
+                        # the original exact test; ordinary visible samples
+                        # need just the dot product and cutoff comparison.
+                        if cosine_separation - cosine_threshold > 1e-8:
+                            return True
+                        return _visible_from_positions(
+                            a, b, state_a, state_b,
+                            minimum_elevation_deg=minimum_elevation_deg,
+                        )
                 return _visible_from_positions(
                     a, b, state_a, state_b, minimum_elevation_deg=minimum_elevation_deg
                 )
 
             def is_visible_at_time(t: int) -> bool:
-                return is_visible_at_positions({
-                    a.node_id: position_and_velocity_ecef(a, t)[0],
-                    b.node_id: position_and_velocity_ecef(b, t)[0],
-                })
+                state_a = position_and_velocity_ecef(a, t)[0]
+                state_b = position_and_velocity_ecef(b, t)[0]
+                if state_a is None or state_b is None:
+                    return False
+                if analytic_visibility:
+                    cosine_separation = sum(state_a[j] * state_b[j] for j in range(3)) * inv_norm_a * inv_norm_b
+                    if cosine_separation < cosine_threshold:
+                        return False
+                    if cosine_separation - cosine_threshold > 1e-8:
+                        return True
+                return _visible_from_positions(
+                    a, b, state_a, state_b,
+                    minimum_elevation_deg=minimum_elevation_deg,
+                )
 
             prev_t = 0
             prev = is_visible_at_positions(sample_positions[0])
