@@ -12,6 +12,8 @@ How do contact availability, buffer capacity, and routing strategy affect bundle
 4. Run the baseline pair, then add one controlled preset at a time: sparse constellation, limited buffers, high traffic, or expanded constellation.
 5. Download the run-level CSV. Preserve it with the seed sequence, selected preset IDs, cutoff, app revision, and this methodology when preparing a report.
 
+The comparison view also offers a saved quick-look reference for all five presets using seeds 42–46 and the same 3,600-second cutoff. It remains available while a live study runs, so it can provide an immediate example without being confused with live results. For reportable results, run the selected settings and use that study's downloaded run-level CSV.
+
 Each seed produces a matched pair for each setting: contact-aware earliest-arrival routing and static minimum-hop routing use the same seeded satellite phases, generated contacts, workload, and cutoff. The phase realization uses the versioned SHA-256 transform documented in `experiments.md`; shared satellites keep their phase across controlled preset variants. The dashboard summary is an arithmetic mean across seeds. The CSV retains per-seed results; it is the source for any further dispersion analysis. The current UI does not compute confidence intervals, hypothesis tests, or significance claims.
 
 ## Suggested results table

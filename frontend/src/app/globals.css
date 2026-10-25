@@ -727,6 +727,7 @@ input, select { height: 34px; padding: 0 9px; border-color: #34465a; background:
 .experiment-scenario-option b { color: #dbe7f1; font-size: 10px; }
 .experiment-scenario-option small { color: #8fa0b1; font-size: 9px; line-height: 1.4; }
 .experiment-run-button { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 40px; margin-top: 15px; }
+.saved-reference-toggle { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 9px; }
 .experiment-run-note { margin: 11px 2px 0; color: #8799ac; font-size: 9px; line-height: 1.55; }
 .experiment-loading, .experiment-progress { display: flex; align-items: center; gap: 11px; color: #a8c8e3; font-size: 11px; }
 .experiment-progress { margin-bottom: 12px; }
@@ -734,6 +735,28 @@ input, select { height: 34px; padding: 0 9px; border-color: #34465a; background:
 .experiment-progress span { color: #8fa0b1; font-size: 10px; }
 .experiment-result-summary { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin: 4px 2px 13px; }
 .experiment-result-summary h2 { margin: 5px 0 0; font-size: 17px; letter-spacing: -.025em; }
+.saved-reference { display: grid; gap: 11px; margin-bottom: 12px; }
+.saved-reference .experiment-result-summary { margin: 0 2px; }
+.saved-reference-intro, .saved-reference-note { margin: 0 2px; color: #9aabbd; font-size: 10px; line-height: 1.6; }
+.saved-reference-chart { margin: 0; padding: 12px 14px; }
+.saved-reference-chart .panel-heading h3 { margin: 0; font-size: 12px; }
+.saved-reference-settings { display: grid; gap: 11px; }
+.saved-reference-card { padding: 13px; border: 1px solid rgba(111,139,165,.16); border-radius: 10px; background: rgba(8,15,23,.28); }
+.saved-reference-card > header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 11px; }
+.saved-reference-card > header h3 { margin: 0; color: #e0ebf5; font-size: 13px; }
+.saved-reference-card > header p { margin: 4px 0 0; color: #91a3b6; font-size: 9px; }
+.saved-reference-card > header > span { flex: 0 0 auto; color: #8fb6d5; font: 9px var(--font-plex-mono), monospace; }
+.saved-policy-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.saved-policy-card { min-width: 0; padding: 10px; border: 1px solid rgba(75,153,204,.2); border-radius: 8px; background: rgba(13,27,40,.55); }
+.saved-policy-card.baseline { border-color: rgba(151,128,219,.22); background: rgba(28,23,43,.34); }
+.saved-policy-card h4 { margin: 0 0 7px; color: #9bd5ff; font-size: 10px; }
+.saved-policy-card.baseline h4 { color: #c4b5ff; }
+.saved-reference-metric { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 33px; padding: 5px 0; border-top: 1px solid rgba(108,132,154,.11); }
+.saved-reference-metric > span { display: grid; gap: 2px; color: #c6d5e3; font-size: 9px; }
+.saved-reference-metric > span small { color: #788da2; font-size: 7px; line-height: 1.35; }
+.saved-reference-metric > b { color: #d5e4f1; font: 9px var(--font-plex-mono), monospace; text-align: right; }
+.saved-reference-metric > b small { display: block; margin-top: 3px; color: #8296aa; font: 8px var(--font-geist), sans-serif; white-space: nowrap; }
+.saved-reference-inference { margin: 9px 0 0; color: #9eb0c2; font-size: 9px; line-height: 1.5; }
 .experiment-run-meta { display: flex; align-items: center; gap: 8px; color: #8fa1b4; font-size: 10px; white-space: nowrap; }
 .experiment-run-meta i { width: 3px; height: 3px; border-radius: 50%; background: #59b5ff; }
 .experiment-export-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: -2px 0 12px; color: #8598ab; font-size: 9px; }
@@ -819,6 +842,8 @@ input, select { height: 34px; padding: 0 9px; border-color: #34465a; background:
   .experiment-result-summary { align-items: flex-start; flex-direction: column; }
   .experiment-export-row { align-items: flex-start; flex-direction: column; }
   .delivery-chart-row { grid-template-columns: minmax(0, 1fr); gap: 7px; }
+  .saved-policy-columns { grid-template-columns: minmax(0, 1fr); }
+  .saved-reference-card > header { align-items: flex-start; flex-direction: column; gap: 5px; }
 }
 @media (max-width: 480px) {
   .metric-method-grid { grid-template-columns: minmax(0, 1fr); }

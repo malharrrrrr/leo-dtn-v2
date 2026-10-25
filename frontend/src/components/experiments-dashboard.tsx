@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Activity, ArrowDownToLine, ArrowUpRight, Check, CircleHelp, Clock3, FlaskConical, LoaderCircle, RadioTower, Route, Scale } from "lucide-react";
+import { Activity, ArrowDownToLine, ArrowUpRight, BookOpen, Check, CircleHelp, Clock3, FlaskConical, LoaderCircle, RadioTower, Route, Scale } from "lucide-react";
 import { compareExperiments, getScenarios } from "@/lib/api";
 import type { ExperimentComparison, Metrics, RoutingPolicy, ScenarioSummary } from "@/lib/contracts";
+import { savedReferenceComparison, type SavedPolicyResult } from "@/lib/reference-comparison";
 
 const SECOND = 1_000_000;
 const defaultHorizonSeconds = 3600;
@@ -106,10 +107,99 @@ function replicateRange(
   return `Range ${format(Math.min(...values))}–${format(Math.max(...values))}`;
 }
 
+function formatPercent(value: number) {
+  return `${(value * 100).toFixed(1)}%`;
+}
+
+function formatCount(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+function formatRange(range: [number, number], format: (value: number) => string) {
+  return `${format(range[0])}–${format(range[1])}`;
+}
+
+function referencePolicyName(policy: RoutingPolicy) {
+  return policy === "contact_aware_earliest_arrival" ? "Contact-aware earliest arrival" : "Static minimum hop";
+}
+
+function SavedReferencePanel() {
+  const policies = [
+    { id: "contact_aware_earliest_arrival" as const, color: "aware" },
+    { id: "static_minimum_hop" as const, color: "baseline" },
+  ];
+  const valueFor = (result: SavedPolicyResult, key: string) => {
+    switch (key) {
+      case "delivery": return <>{formatPercent(result.deliveryRatio)}<small>Range {formatRange(result.deliveryRatioRange, formatPercent)}</small></>;
+      case "delivered": return <>{formatCount(result.deliveredMean)}<small>Range {formatRange(result.deliveredRange, formatCount)} bundles</small></>;
+      case "latency": return result.medianLatencySeconds == null
+        ? <>No deliveries<small>Median unavailable</small></>
+        : <>{result.medianLatencySeconds.toFixed(2)} s<small>Range {formatRange(result.medianLatencyRangeSeconds!, (value) => `${value.toFixed(2)} s`)}</small></>;
+      case "hops": return result.meanHops == null
+        ? <>No deliveries<small>Mean unavailable</small></>
+        : <>{result.meanHops.toFixed(2)}<small>Range {formatRange(result.meanHopsRange!, (value) => value.toFixed(2))}</small></>;
+      case "expired": return formatPercent(result.expirationRatio);
+      case "pending": return `${formatCount(result.undeliveredMean)} bundles`;
+      case "rejected": return `${formatCount(result.sourceRejectedMean)} bundles`;
+      case "utilization": return formatPercent(result.contactUtilization);
+      case "buffer": return `${result.meanBufferMb.toFixed(1)} MB`;
+      default: return "—";
+    }
+  };
+  const rows = [
+    ["Delivery ratio", "delivery", "Mean delivered ÷ generated; range across seeds"],
+    ["Delivered bundles", "delivered", "Mean count; range across seeds"],
+    ["Median latency", "latency", "Mean of per-seed medians for runs with deliveries"],
+    ["Mean hops", "hops", "Mean of per-seed delivered-bundle hop counts"],
+    ["Expired by cutoff", "expired", "Expired bundles ÷ generated"],
+    ["Undelivered total", "pending", "Generated but not delivered by the cutoff; includes source rejections"],
+    ["Source rejected", "rejected", "Generation attempts rejected by a full source buffer"],
+    ["Contact utilization", "utilization", "Context metric; not ranked as universally better"],
+    ["Mean buffered data", "buffer", "Time-weighted average across node buffers"],
+  ] as const;
+
+  return <section id="saved-reference-comparison" className="saved-reference panel">
+    <div className="experiment-result-summary">
+      <div><span className="eyebrow">SAVED BACKEND REFERENCE · FIVE SEEDS</span><h2>Instant comparison for the recommended setup</h2></div>
+      <span className="experiment-run-meta">Seeds 42–46 <i /> 3,600 s cutoff</span>
+    </div>
+    <p className="saved-reference-intro">This fixed reference is available while live studies run. It compares both policies on the same seeded network and traffic in each setting; only routing policy changes.</p>
+    <section className="experiment-chart saved-reference-chart" aria-label="Saved mean delivery ratio comparison">
+      <div className="panel-heading"><div className="heading-icon cyan"><Activity size={15} /></div><h3>Mean delivery ratio across five seeds</h3></div>
+      {savedReferenceComparison.map((scenario) => <div className="delivery-chart-row" key={scenario.id}>
+        <span>{scenario.name.replace("Mumbai–New York · ", "")}</span>
+        <div className="delivery-bars">{scenario.policies.map((result) => <div className="delivery-bar-line" key={result.policy}>
+          <small>{result.policy === "contact_aware_earliest_arrival" ? "Contact-aware" : "Static min-hop"}</small>
+          <div className="delivery-track"><i className={result.policy === "contact_aware_earliest_arrival" ? "aware" : "baseline"} style={{ width: `${Math.max(result.deliveryRatio > 0 ? 2 : 0, result.deliveryRatio * 100)}%` }} /></div>
+          <b>{formatPercent(result.deliveryRatio)}</b>
+        </div>)}</div>
+      </div>)}
+    </section>
+    <div className="saved-reference-settings">
+      {savedReferenceComparison.map((scenario) => <article className="saved-reference-card" key={scenario.id}>
+        <header><div><h3>{scenario.name}</h3><p>{scenario.factor}</p></div><span>{scenario.generated} attempted per seed</span></header>
+        <div className="saved-policy-columns">{policies.map((policy) => {
+          const result = scenario.policies.find((item) => item.policy === policy.id)!;
+          return <section className={`saved-policy-card ${policy.color}`} key={policy.id}>
+            <h4>{referencePolicyName(result.policy)}</h4>
+            {rows.map(([label, key, description]) => <div className="saved-reference-metric" key={key}>
+              <span>{label}<small>{description}</small></span>
+              <b>{valueFor(result, key)}</b>
+            </div>)}
+          </section>;
+        })}</div>
+        <p className="saved-reference-inference">At this cutoff, {scenario.policies[0].deliveryRatio > scenario.policies[1].deliveryRatio ? "contact-aware earliest arrival delivered a larger share" : "the policies delivered the same share"}. This descriptive reference does not establish statistical significance.</p>
+      </article>)}
+    </div>
+    <p className="saved-reference-note">Averages and ranges are across the five individual seeded runs. Bundles still pending at the cutoff count as undelivered but not expired; source rejections are terminal and are shown separately. Contact utilization and buffer occupancy are context measures.</p>
+  </section>;
+}
+
 export function ExperimentsDashboard() {
   const [scenarios, setScenarios] = useState<ScenarioSummary[]>([]);
   const [selectedScenarioIds, setSelectedScenarioIds] = useState<string[]>([]);
   const [comparison, setComparison] = useState<ExperimentComparison | null>(null);
+  const [showReference, setShowReference] = useState(false);
   const [seed, setSeed] = useState(42);
   const [replicates, setReplicates] = useState(3);
   const [replicateProgress, setReplicateProgress] = useState(0);
@@ -245,9 +335,11 @@ export function ExperimentsDashboard() {
             {running ? `Running repetition ${replicateProgress + 1} of ${replicates}…` : "Run study"}
           </button>
           <p className="experiment-run-note">Each seed runs both policies with the same workload and network. Results show the mean across seeds; download the CSV for each individual run. Orbital contacts use the configured geometry model.</p>
+          <button className="secondary full-width saved-reference-toggle" type="button" aria-expanded={showReference} aria-controls="saved-reference-comparison" onClick={() => setShowReference((visible) => !visible)}><BookOpen size={15} />{showReference ? "Hide saved comparison" : "Show saved five-seed comparison"}</button>
         </aside>
 
         <section className="experiment-results-column">
+          {showReference && <SavedReferencePanel />}
           {error && <div className="scenario-error"><CircleHelp size={16} />{error}</div>}
           {running && <div className="experiment-progress panel"><LoaderCircle className="spin" size={19} /><div><b>Running matched scenarios · repetition {replicateProgress + 1} of {replicates}</b><span>{selectedScenarioIds.length * 2} backend runs per seed; current result: {replicateResults.length ? "available" : "waiting"}.</span></div></div>}
           {!running && comparison && <>
@@ -313,7 +405,7 @@ export function ExperimentsDashboard() {
               })}
             </div>
           </>}
-          {!running && !comparison && !error && <div className="experiment-empty panel"><FlaskConical size={24} /><b>Choose settings and run the comparison</b><span>Results will come from paired backend simulations.</span></div>}
+          {!running && !comparison && !error && !showReference && <div className="experiment-empty panel"><FlaskConical size={24} /><b>Choose settings and run the comparison</b><span>Results will come from paired backend simulations.</span></div>}
         </section>
       </div>
 
