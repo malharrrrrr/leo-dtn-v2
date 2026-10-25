@@ -297,7 +297,6 @@ export function Dashboard() {
               <option value="static_minimum_hop">Static minimum hop</option>
             </select>
             <p className="algorithm-copy">{routingDescription}</p>
-            <div className="field-row"><label className="field-label" htmlFor="seed">Random seed</label><input id="seed" type="number" value={seed} onChange={(event) => setSeed(Number(event.target.value))} /></div>
             <div className="field-row"><label className="field-label" htmlFor="horizon">{configuration.orbital_contact_generation ? "Minimum contact plan (s)" : "Run horizon (s)"}</label><input id="horizon" type="number" min="1" value={horizonSeconds} onChange={(event) => setHorizonSeconds(Number(event.target.value))} /></div>
             {configuration.orbital_contact_generation && <p className="algorithm-copy">The plan expands through bundle TTL so routing can compare full paths before a contact passes.</p>}
             <button className="primary full-width" onClick={startNewSimulation} disabled={startDisabled}><Play size={15} /> Create and run</button>
@@ -334,8 +333,12 @@ export function Dashboard() {
             </div>
             <div className="random-box">
               <div className="random-title"><Sparkles size={14} /><b>Seeded random placement</b></div>
-              <div className="random-controls"><label>Count<input type="number" min="1" max="500" value={randomCount} onChange={(event) => setRandomCount(Math.max(1, Math.min(500, Number(event.target.value))))} /></label><button className="secondary" onClick={addRandomSatellites}>Add satellites</button></div>
-              <small>Seed {seed} and the current count reproduce these positions.</small>
+              <div className="random-controls">
+                <label htmlFor="placement-seed">Placement seed<input id="placement-seed" type="number" value={seed} onChange={(event) => setSeed(Number(event.target.value))} /></label>
+                <label htmlFor="random-count">Count<input id="random-count" type="number" min="1" max="500" value={randomCount} onChange={(event) => setRandomCount(Math.max(1, Math.min(500, Number(event.target.value))))} /></label>
+                <button className="secondary" onClick={addRandomSatellites}>Add satellites</button>
+              </div>
+              <small>The seed stays selected between additions. The same seed and existing constellation reproduce the same addition; change the seed for a different placement.</small>
             </div>
           </section>
 
