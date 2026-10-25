@@ -151,6 +151,11 @@ On Unix, use `backend/.venv/bin/python`. Do not make engine tests depend on runn
 - The panel remains available during a live study and clearly labels its 8-hour cutoff as longer than the current 1-hour live control. It reports the same metrics as before. The saved set intentionally contains only the baseline preset; other presets remain available through live studies.
 - Frontend verification passed: `npm run typecheck`, `npm run lint`, and `npm run build` from `frontend/`. The build needed permission to write generated files under `.next`. Preserve the unrelated pre-existing modification to `frontend/next-env.d.ts` when staging.
 
+### Saved reference comparison choices (2026-10-25)
+
+- Restored the earlier 3,600-second saved comparison across all five presets alongside the newer 28,800-second baseline comparison. The saved-comparison control now opens two clearly labeled choices: “1-hour · all 5 presets” and “8-hour · baseline, delayed contacts”; selecting either displays its static results.
+- Frontend verification passed: `npm run typecheck`, `npm run lint`, and `npm run build` from `frontend/`. Preserve the unrelated modification to `frontend/next-env.d.ts` when staging.
+
 Next, handle the Next.js security upgrade when the user chooses whether to use a separate worktree or the current checkout. Then continue interactive checks for the 3D playback, preset loading, multi-seed run-level CSV download, and mobile layout. Keep claims about statistical significance limited to an adequately powered analysis; the included three-seed sweep is descriptive only.
 
 After substantial work, update this file’s current state, verification results, and suggested next task so another agent can resume without reconstructing the entire conversation.

@@ -728,6 +728,9 @@ input, select { height: 34px; padding: 0 9px; border-color: #34465a; background:
 .experiment-scenario-option small { color: #8fa0b1; font-size: 9px; line-height: 1.4; }
 .experiment-run-button { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 40px; margin-top: 15px; }
 .saved-reference-toggle { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 9px; }
+.saved-reference-options { display: grid; gap: 7px; margin-top: 7px; }
+.saved-reference-options .secondary { justify-content: flex-start; text-align: left; line-height: 1.4; }
+.saved-reference-options .saved-reference-option-active { border-color: #4a9fe8; background: rgba(49, 132, 202, .18); color: #d6edff; }
 .experiment-run-note { margin: 11px 2px 0; color: #8799ac; font-size: 9px; line-height: 1.55; }
 .experiment-loading, .experiment-progress { display: flex; align-items: center; gap: 11px; color: #a8c8e3; font-size: 11px; }
 .experiment-progress { margin-bottom: 12px; }

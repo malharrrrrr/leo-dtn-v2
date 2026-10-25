@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Activity, ArrowDownToLine, ArrowUpRight, BookOpen, Check, CircleHelp, Clock3, FlaskConical, LoaderCircle, RadioTower, Route, Scale } from "lucide-react";
 import { compareExperiments, getScenarios } from "@/lib/api";
 import type { ExperimentComparison, Metrics, RoutingPolicy, ScenarioSummary } from "@/lib/contracts";
-import { savedReferenceComparison, type SavedPolicyResult } from "@/lib/reference-comparison";
+import { savedEightHourComparison, savedOneHourComparison, type SavedPolicyResult, type SavedScenarioResult } from "@/lib/reference-comparison";
 
 const SECOND = 1_000_000;
 const defaultHorizonSeconds = 3600;
@@ -123,7 +123,7 @@ function referencePolicyName(policy: RoutingPolicy) {
   return policy === "contact_aware_earliest_arrival" ? "Contact-aware earliest arrival" : "Static minimum hop";
 }
 
-function SavedReferencePanel() {
+function SavedReferencePanel({ comparison, isExtended }: { comparison: SavedScenarioResult[]; isExtended: boolean }) {
   const policies = [
     { id: "contact_aware_earliest_arrival" as const, color: "aware" },
     { id: "static_minimum_hop" as const, color: "baseline" },
@@ -160,13 +160,13 @@ function SavedReferencePanel() {
 
   return <section id="saved-reference-comparison" className="saved-reference panel">
     <div className="experiment-result-summary">
-      <div><span className="eyebrow">SAVED BACKEND REFERENCE · BASELINE</span><h2>Instant comparison for the baseline setup</h2></div>
-      <span className="experiment-run-meta">Seeds 42–46 <i /> 28,800 s (8 hours)</span>
+      <div><span className="eyebrow">SAVED BACKEND REFERENCE · FIVE SEEDS</span><h2>{isExtended ? "Extended baseline comparison" : "Standard multi-scenario comparison"}</h2></div>
+      <span className="experiment-run-meta">Seeds 42–46 <i /> {isExtended ? "28,800 s (8 hours)" : "3,600 s (1 hour)"}</span>
     </div>
-    <p className="saved-reference-intro">This fixed baseline reference is available while live studies run. Both policies use the same seeded network and traffic; only routing policy changes. Its 8-hour observation window is longer than the live study control, which currently allows up to 1 hour.</p>
+    <p className="saved-reference-intro">Both policies use the same seeded network and traffic; only routing policy changes. {isExtended ? "This baseline reference uses an 8-hour observation window, longer than the live study control, which currently allows up to 1 hour." : "This standard reference covers all five presets at the current 1-hour live-study cutoff."}</p>
     <section className="experiment-chart saved-reference-chart" aria-label="Saved mean delivery ratio comparison">
       <div className="panel-heading"><div className="heading-icon cyan"><Activity size={15} /></div><h3>Mean delivery ratio across five seeds</h3></div>
-      {savedReferenceComparison.map((scenario) => <div className="delivery-chart-row" key={scenario.id}>
+      {comparison.map((scenario) => <div className="delivery-chart-row" key={scenario.id}>
         <span>{scenario.name.replace("Mumbai–New York · ", "")}</span>
         <div className="delivery-bars">{scenario.policies.map((result) => <div className="delivery-bar-line" key={result.policy}>
           <small>{result.policy === "contact_aware_earliest_arrival" ? "Contact-aware" : "Static min-hop"}</small>
@@ -176,7 +176,7 @@ function SavedReferencePanel() {
       </div>)}
     </section>
     <div className="saved-reference-settings">
-      {savedReferenceComparison.map((scenario) => <article className="saved-reference-card" key={scenario.id}>
+      {comparison.map((scenario) => <article className="saved-reference-card" key={scenario.id}>
         <header><div><h3>{scenario.name}</h3><p>{scenario.factor}</p></div><span>{scenario.generated} attempted per seed</span></header>
         <div className="saved-policy-columns">{policies.map((policy) => {
           const result = scenario.policies.find((item) => item.policy === policy.id)!;
@@ -191,7 +191,7 @@ function SavedReferencePanel() {
         <p className="saved-reference-inference">At this cutoff, {scenario.policies[0].deliveryRatio > scenario.policies[1].deliveryRatio ? "contact-aware earliest arrival delivered a larger share" : "the policies delivered the same share"}. This descriptive reference does not establish statistical significance.</p>
       </article>)}
     </div>
-    <p className="saved-reference-note">Averages and ranges are across five individual seeded runs of the baseline preset. Bundles still pending at the cutoff count as undelivered but not expired; source rejections are terminal and are shown separately. Contact utilization and buffer occupancy are context measures. This longer-horizon reference is illustrative; use a live study and its CSV for the selected settings.</p>
+    <p className="saved-reference-note">Averages and ranges are across five individual seeded runs. Bundles still pending at the cutoff count as undelivered but not expired; source rejections are terminal and are shown separately. Contact utilization and buffer occupancy are context measures. These saved results are illustrative; use a live study and its CSV for reportable results.</p>
   </section>;
 }
 
@@ -199,7 +199,8 @@ export function ExperimentsDashboard() {
   const [scenarios, setScenarios] = useState<ScenarioSummary[]>([]);
   const [selectedScenarioIds, setSelectedScenarioIds] = useState<string[]>([]);
   const [comparison, setComparison] = useState<ExperimentComparison | null>(null);
-  const [showReference, setShowReference] = useState(false);
+  const [showReferenceOptions, setShowReferenceOptions] = useState(false);
+  const [savedReferenceType, setSavedReferenceType] = useState<"standard" | "extended" | null>(null);
   const [seed, setSeed] = useState(42);
   const [replicates, setReplicates] = useState(3);
   const [replicateProgress, setReplicateProgress] = useState(0);
@@ -335,11 +336,15 @@ export function ExperimentsDashboard() {
             {running ? `Running repetition ${replicateProgress + 1} of ${replicates}…` : "Run study"}
           </button>
           <p className="experiment-run-note">Each seed runs both policies with the same workload and network. Results show the mean across seeds; download the CSV for each individual run. Orbital contacts use the configured geometry model.</p>
-          <button className="secondary full-width saved-reference-toggle" type="button" aria-expanded={showReference} aria-controls="saved-reference-comparison" onClick={() => setShowReference((visible) => !visible)}><BookOpen size={15} />{showReference ? "Hide saved comparison" : "Show saved 8-hour baseline comparison"}</button>
+          <button className="secondary full-width saved-reference-toggle" type="button" aria-expanded={showReferenceOptions} aria-controls="saved-reference-options" onClick={() => setShowReferenceOptions((visible) => !visible)}><BookOpen size={15} />{showReferenceOptions ? "Hide saved comparison options" : "Show saved comparisons"}</button>
+          {showReferenceOptions && <div className="saved-reference-options" id="saved-reference-options" aria-label="Choose a saved comparison">
+            <button className={`secondary full-width ${savedReferenceType === "standard" ? "saved-reference-option-active" : ""}`} type="button" aria-pressed={savedReferenceType === "standard"} onClick={() => setSavedReferenceType("standard")}>1-hour · all 5 presets</button>
+            <button className={`secondary full-width ${savedReferenceType === "extended" ? "saved-reference-option-active" : ""}`} type="button" aria-pressed={savedReferenceType === "extended"} onClick={() => setSavedReferenceType("extended")}>8-hour · baseline, delayed contacts</button>
+          </div>}
         </aside>
 
         <section className="experiment-results-column">
-          {showReference && <SavedReferencePanel />}
+          {savedReferenceType && <SavedReferencePanel comparison={savedReferenceType === "extended" ? savedEightHourComparison : savedOneHourComparison} isExtended={savedReferenceType === "extended"} />}
           {error && <div className="scenario-error"><CircleHelp size={16} />{error}</div>}
           {running && <div className="experiment-progress panel"><LoaderCircle className="spin" size={19} /><div><b>Running matched scenarios · repetition {replicateProgress + 1} of {replicates}</b><span>{selectedScenarioIds.length * 2} backend runs per seed; current result: {replicateResults.length ? "available" : "waiting"}.</span></div></div>}
           {!running && comparison && <>
@@ -405,7 +410,7 @@ export function ExperimentsDashboard() {
               })}
             </div>
           </>}
-          {!running && !comparison && !error && !showReference && <div className="experiment-empty panel"><FlaskConical size={24} /><b>Choose settings and run the comparison</b><span>Results will come from paired backend simulations.</span></div>}
+          {!running && !comparison && !error && !savedReferenceType && <div className="experiment-empty panel"><FlaskConical size={24} /><b>Choose settings and run the comparison</b><span>Results will come from paired backend simulations.</span></div>}
         </section>
       </div>
 
